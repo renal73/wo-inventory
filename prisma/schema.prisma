@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                   String                @id @default(cuid())
+  username             String                @unique
+  name                 String
+  passwordHash         String
+  role                 Role                  @default(USER)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  inboundTransactions  InboundTransaction[]
+  outboundTransactions OutboundTransaction[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  icon      String?
+  createdAt DateTime @default(now())
+  parts     Part[]
+}
+
+model UsagePurpose {
+  id                   String                @id @default(cuid())
+  purpose              String                @unique
+  isActive             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  outboundTransactions OutboundTransaction[]
+}
+
+model Machine {
+  id                   String                @id
+  name                 String
+  description          String?
+  area                 String?
+  status               MachineStatus         @default(ACTIVE)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  machineParts         MachinePart[]
+  outboundTransactions OutboundTransaction[]
+}
+
+model Part {
+  id                   String                @id
+  name                 String
+  description          String?
+  categoryId           String
+  stock                Int                   @default(0)
+  minStockAlert        Int                   @default(5)
+  price                Float                 @default(0)
+  rackLocation         String?
+  vendor               String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  inboundTransactions  InboundTransaction[]
+  machineParts         MachinePart[]
+  outboundTransactions OutboundTransaction[]
+  category             Category              @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+model MachinePart {
+  id                String   @id @default(cuid())
+  machineId         String
+  partId            String
+  partType          PartType @default(ELECTRICAL)
+  recommendedMinQty Int      @default(1)
+  notes             String?
+  assignedAt        DateTime @default(now())
+  machine           Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  part              Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@unique([machineId, partId])
+}
+
+model InboundTransaction {
+  id        String   @id @default(cuid())
+  partId    String
+  quantity  Int
+  price     Float
+  vendor    String
+  createdBy String
+  date      DateTime @default(now())
+  creator   User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  part      Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
+}
+
+model OutboundTransaction {
+  id        String       @id @default(cuid())
+  partId    String
+  quantity  Int
+  purposeId String
+  machineId String?
+  createdBy String
+  date      DateTime     @default(now())
+  creator   User         @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  machine   Machine?     @relation(fields: [machineId], references: [id])
+  part      Part         @relation(fields: [partId], references: [id], onDelete: Cascade)
+  purpose   UsagePurpose @relation(fields: [purposeId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum MachineStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum PartType {
+  ELECTRICAL
+  MECHANICAL
+}
