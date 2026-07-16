@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       data: {
         username: username.toLowerCase().trim(),
         name: name.trim(),
-        role: role as 'ADMIN' | 'USER',
+        role: role as 'ADMIN' | 'USER' | 'WAREHOUSE' | 'TECHNICIAN' | 'OPERATOR' | 'QC_ANALYST',
         passwordHash,
       }
     });

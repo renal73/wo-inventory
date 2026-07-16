@@ -40,6 +40,7 @@ export async function GET(request: Request) {
       where,
       include: {
         category: true,
+        unitOfMeasure: true,
         machineParts: {
           include: {
             machine: true
@@ -83,6 +84,11 @@ export async function GET(request: Request) {
           icon: p.category.icon,
           createdAt: p.category.createdAt.toISOString()
         } : null,
+        unitOfMeasure: p.unitOfMeasure ? {
+          id: p.unitOfMeasure.id,
+          name: p.unitOfMeasure.name,
+          label: p.unitOfMeasure.label
+        } : null,
         machineCount: p.machineParts.length,
         isLowStock: p.stock <= p.minStockAlert,
         machines: p.machineParts.map(mr => ({
@@ -107,7 +113,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { id, name, description, categoryId, minStockAlert, price, rackLocation, vendor } = body;
+    const { id, name, description, categoryId, unitOfMeasureId, minStockAlert, price, rackLocation, vendor } = body;
 
     // Validasi input wajib
     if (!id || !name || !categoryId) {
@@ -117,11 +123,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validasi format Part ID (misal: EL-001, ME-005)
-    const idRegex = /^[A-Z]{2}-\d{3,4}$/;
+    // Validasi format Part ID (4 huruf diikuti 4 angka, misal: ABCD1234)
+    const idRegex = /^[A-Za-z]{5}\d{4}$/;
     if (!idRegex.test(id)) {
       return NextResponse.json(
-        { message: 'Format Part ID tidak valid. Contoh: EL-001 atau ME-005 (2 huruf kapital, tanda strip, diikuti 3 atau 4 angka)' },
+        { message: 'Format Part ID tidak valid. Harus terdiri dari 4 huruf diikuti 4 angka (contoh: ABCDE1234).' },
         { status: 400 }
       );
     }
@@ -155,6 +161,7 @@ export async function POST(request: Request) {
         description: description ? description.trim() : null,
         categoryId,
         stock: 0, // Registrasi baru selalu memiliki stok awal 0 (stok bertambah via Inbound)
+        unitOfMeasureId: unitOfMeasureId || null,
         minStockAlert: Number(minStockAlert) || 5,
         price: Number(price) || 0,
         rackLocation: rackLocation ? rackLocation.trim() : null,

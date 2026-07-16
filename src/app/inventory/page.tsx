@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { api } from '@/lib/api';
 import { QrCode } from '@/components/ui/QrCode';
+import { BarChart, StatCard, HorizontalBar } from '@/components/ui/ChartComponents';
+import MinimalVodafoneHero from '@/components/machines/MinimalVodafoneHero';
 import { 
   Search, 
   Filter, 
@@ -19,7 +21,15 @@ import {
   X,
   MapPin,
   HelpCircle,
-  Package
+  Package,
+  TrendingUp,
+  TrendingDown,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  BarChart3,
+  ArrowDownRight,
+  ArrowUpRight,
+  Download as DownloadIcon
 } from 'lucide-react';
 
 export default function InventoryPage() {
@@ -29,8 +39,14 @@ export default function InventoryPage() {
   // State utama
   const [parts, setParts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [unitsOfMeasure, setUnitsOfMeasure] = useState<any[]>([]);
   const [rackLocations, setRackLocations] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // State Chart
+  const [chartData, setChartData] = useState<any>(null);
+  const [chartLoading, setChartLoading] = useState(true);
+  const [chartPeriod, setChartPeriod] = useState('30d');
 
   // State filter & pencarian
   const [search, setSearch] = useState('');
@@ -62,6 +78,7 @@ export default function InventoryPage() {
     name: '',
     description: '',
     categoryId: '',
+    unitOfMeasureId: '',
     minStockAlert: 5,
     price: 0,
     rackLocation: '',
@@ -80,7 +97,29 @@ export default function InventoryPage() {
   useEffect(() => {
     loadData();
     loadCategories();
+    loadUnits();
+    loadChartData();
   }, [search, selectedCategory, selectedRack, filterLowStock, filterHasMachine]);
+
+  // Load Chart Data
+  const loadChartData = async () => {
+    try {
+      setChartLoading(true);
+      const res = await fetch(`/api/inventory/chart?period=${chartPeriod}`);
+      if (res.ok) {
+        const data = await res.json();
+        setChartData(data);
+      }
+    } catch (err) {
+      console.error('Gagal memuat data chart:', err);
+    } finally {
+      setChartLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadChartData();
+  }, [chartPeriod]);
 
   const loadData = async () => {
     try {
@@ -114,6 +153,18 @@ export default function InventoryPage() {
       setCategories(cats);
     } catch (err) {
       console.error('Gagal memuat kategori:', err);
+    }
+  };
+
+  const loadUnits = async () => {
+    try {
+      const res = await fetch('/api/unit-of-measures');
+      if (res.ok) {
+        const units = await res.json();
+        setUnitsOfMeasure(units);
+      }
+    } catch (err) {
+      console.error('Gagal memuat satuan:', err);
     }
   };
 
@@ -157,6 +208,7 @@ export default function InventoryPage() {
       name: '',
       description: '',
       categoryId: categories[0]?.id || '',
+      unitOfMeasureId: '',
       minStockAlert: 5,
       price: 0,
       rackLocation: '',
@@ -175,6 +227,7 @@ export default function InventoryPage() {
       name: part.name,
       description: part.description || '',
       categoryId: part.categoryId,
+      unitOfMeasureId: part.unitOfMeasure?.id || '',
       minStockAlert: part.minStockAlert,
       price: part.price,
       rackLocation: part.rackLocation || '',
@@ -238,41 +291,36 @@ export default function InventoryPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
         
-        {/* Header Halaman */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
-          <div>
-            <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-100 uppercase">
-              Inventaris Suku Cadang
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Kelola master data suku cadang engineering, stok minimum rak, dan pemetaan mesin terkait.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {isAdmin && (
-              <>
-                <button
-                  onClick={handleExportCSV}
-                  className="inline-flex items-center gap-1.5 px-3.5 h-9 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 text-slate-700 dark:text-slate-300 transition-colors shadow-xs cursor-pointer"
-                >
-                  <Download size={14} />
-                  <span>Ekspor CSV</span>
-                </button>
-
-                <button
-                  onClick={openAddForm}
-                  className="inline-flex items-center gap-1.5 px-3.5 h-9 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md shadow-blue-600/10 cursor-pointer shrink-0"
-                >
-                  <Plus size={15} />
-                  <span>Tambah Suku Cadang</span>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+        {/* Minimal Vodafone Hero Header */}
+        <MinimalVodafoneHero
+          eyebrow="Spare Part Management"
+          title="Inventaris Suku Cadang"
+          subtitle="Kelola master data suku cadang engineering, stok minimum rak, dan pemetaan mesin terkait."
+          stats={[
+            { value: parts.length, label: 'Total Parts' },
+            { value: parts.filter(p => p.isLowStock).length, label: 'Low Stock', color: 'text-red-400' },
+          ]}
+          action={isAdmin ? (
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportCSV}
+                className="inline-flex items-center gap-1.5 px-3 h-8 text-[10px] font-bold bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-lg transition-all cursor-pointer"
+              >
+                <DownloadIcon size={13} />
+                <span>CSV</span>
+              </button>
+              <button
+                onClick={openAddForm}
+                className="inline-flex items-center gap-1.5 px-3 h-8 text-[10px] font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all cursor-pointer"
+              >
+                <Plus size={13} />
+                <span>Tambah</span>
+              </button>
+            </div>
+          ) : undefined}
+        />
 
         {/* Filter & Search Bar */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 md:p-5 shadow-xs space-y-4">
@@ -421,7 +469,7 @@ export default function InventoryPage() {
                           <td className="p-4 text-center">
                             <div className="flex flex-col items-center">
                               <span className={`font-bold ${p.isLowStock ? 'text-red-600 dark:text-red-500 animate-pulse' : 'text-slate-800 dark:text-slate-200'}`}>
-                                {p.stock} unit
+                                {p.stock} {p.unitOfMeasure?.label || 'unit'}
                               </span>
                               {p.isLowStock && (
                                 <span className="text-[8px] font-bold text-red-500 uppercase tracking-widest mt-0.5">
@@ -536,7 +584,7 @@ export default function InventoryPage() {
                               ? 'bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-200 dark:border-red-900/50 animate-pulse' 
                               : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
                           }`}>
-                            Stok: {p.stock} unit
+                            Stok: {p.stock} {p.unitOfMeasure?.label || 'unit'}
                           </span>
                           {p.isLowStock && (
                             <span className="text-[8px] font-extrabold text-red-500 uppercase tracking-widest block mt-1">
@@ -805,7 +853,7 @@ export default function InventoryPage() {
                   </label>
                   <input
                     type="text"
-                    placeholder="Contoh: EL-001 atau ME-012"
+                    placeholder="Contoh: ABCDE0001"
                     value={formData.id}
                     onChange={(e) => setFormData({ ...formData, id: e.target.value })}
                     disabled={formMode === 'EDIT'}
@@ -813,7 +861,7 @@ export default function InventoryPage() {
                     required
                   />
                   {formMode === 'ADD' && (
-                    <p className="text-[9px] text-slate-400 mt-0.5">Format: 2 huruf kapital kategori (EL/ME), tanda hubung, diikuti 3 digit angka.</p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Format: 5 huruf kapital kategori, tanda hubung, diikuti 4 digit angka.</p>
                   )}
                 </div>
 
@@ -846,6 +894,25 @@ export default function InventoryPage() {
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Satuan / Unit of Measure */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Satuan
+                  </label>
+                  <select
+                    value={formData.unitOfMeasureId}
+                    onChange={(e) => setFormData({ ...formData, unitOfMeasureId: e.target.value })}
+                    className="w-full h-9 px-3 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden focus:border-blue-500 text-slate-600 dark:text-slate-300"
+                  >
+                    <option value="">Pilih Satuan</option>
+                    {unitsOfMeasure.map((u: any) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.label})
                       </option>
                     ))}
                   </select>

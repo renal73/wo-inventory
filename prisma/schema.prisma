@@ -12,10 +12,31 @@ model User {
   name                 String
   passwordHash         String
   role                 Role                  @default(USER)
+  specialization       TechnicianSpec?      // "MACHINERY" | "UTILITY_FACILITY"
+  phone               String?
+  email               String?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   inboundTransactions  InboundTransaction[]
   outboundTransactions OutboundTransaction[]
+  toolsInCharge        Tool[]                @relation("ToolPIC")
+  borrowedTools        ToolBorrowRecord[]    @relation("ToolBorrower")
+  
+  requestedWos         WorkOrder[]           @relation("WoRequester")
+  closedWos            WorkOrder[]           @relation("WoCloser")
+  woUpdates            WoUpdate[]
+  defaultTechPms       PmTemplate[]          @relation("PmDefaultTech")
+  createdPmTemps       PmTemplate[]          @relation("PmTemplateCreator")
+  assignedPms          PmSchedule[]          @relation("PmScheduleAssignee")
+  workOrderParts       WorkOrderPart[]       // Part yang diambil oleh teknisi ini
+}
+
+model UnitOfMeasure {
+  id        String   @id @default(cuid())
+  name      String   @unique            // "Unit", "Roll", "Pcs", "Box", "Pack", dll
+  label     String                      // Label display: "unit", "roll", "pcs", dll
+  createdAt DateTime @default(now())
+  parts     Part[]
 }
 
 model Category {
@@ -40,6 +61,13 @@ model Machine {
   description          String?
   area                 String?
   status               MachineStatus         @default(ACTIVE)
+  
+  // Field baru untuk enhancement
+  machineType          String?               // Tipe mesin: Compressor, Conveyor, Boiler, dll
+  manufacturer         String?               // Merk/pabrikan
+  powerWatt            Int?                  // Daya dalam Watt
+  airPressureValue     Float?                // Nilai tekanan udara (Pascal/Pa)
+  
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   machineParts         MachinePart[]
@@ -51,6 +79,7 @@ model Part {
   name                 String
   description          String?
   categoryId           String
+  unitOfMeasureId      String?
   stock                Int                   @default(0)
   minStockAlert        Int                   @default(5)
   price                Float                 @default(0)
@@ -62,6 +91,8 @@ model Part {
   machineParts         MachinePart[]
   outboundTransactions OutboundTransaction[]
   category             Category              @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  unitOfMeasure        UnitOfMeasure?        @relation(fields: [unitOfMeasureId], references: [id], onDelete: SetNull)
+  workOrderParts       WorkOrderPart[]       // Part yang diambil untuk work orders
 }
 
 model MachinePart {
@@ -105,8 +136,17 @@ model OutboundTransaction {
 }
 
 enum Role {
-  ADMIN
   USER
+  TECHNICIAN
+  WAREHOUSE
+  ADMIN
+  OPERATOR
+  QC_ANALYST
+}
+
+enum TechnicianSpec {
+  MACHINERY
+  UTILITY_FACILITY
 }
 
 enum MachineStatus {
@@ -119,3 +159,275 @@ enum PartType {
   ELECTRICAL
   MECHANICAL
 }
+
+model Tool {
+  id            String             @id @default(cuid())
+  name          String
+  brand         String?
+  stock         Int                @default(0)
+  picId         String?
+  pic           User?              @relation("ToolPIC", fields: [picId], references: [id])
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  
+  transactions  ToolBorrowRecord[]
+}
+
+model ToolBorrowRecord {
+  id          String       @id @default(cuid())
+  toolId      String
+  userId      String
+  quantity    Int
+  notes       String?
+  status      BorrowStatus @default(PENDING_BORROW)
+  borrowedAt  DateTime?
+  returnedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  tool        Tool         @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  user        User         @relation("ToolBorrower", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum BorrowStatus {
+  PENDING_BORROW
+  BORROWED
+  PENDING_RETURN
+  RETURNED
+  REJECTED
+}
+
+// ---------------------------------------------------------------------------
+// MAINTENANCE OS MODELS (from PRD)
+// ---------------------------------------------------------------------------
+
+enum Classification {
+  ELECTRIC
+  MECHANIC
+  SIPIL
+  OTHER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum WoStatus {
+  OPEN
+  IN_REVIEW
+  ASSIGNED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CLOSED
+}
+
+enum WoCategory {
+  PERBAIKAN    // WO-A26/xxx
+  PEMBUATAN    // WO-B26/xxx
+  INSTALASI    // WO-C26/xxx
+  MODIFIKASI   // WO-D26/xxx
+  KESELAMATAN  // WO-E26/xxx
+}
+
+enum JobCategory {
+  MACHINERY
+  UTILITY
+  FACILITY_BUILDING
+}
+
+enum PmFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum PmStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  workOrders  WorkOrder[]
+}
+
+model WorkOrder {
+  id                String          @id @default(cuid())
+  woNumber          String          @unique // WO-A26/0001, WO-B26/0001, etc.
+  title             String
+  description       String
+  location          String
+  category          WoCategory      @default(PERBAIKAN)
+  classification    Classification?
+  jobCategory       JobCategory?
+  priority          Priority        @default(LOW)
+  status            WoStatus        @default(OPEN)
+  assignedAt        DateTime?
+  dueDate           DateTime?
+  
+  requestedById     String?
+  requestedBy       User?           @relation("WoRequester", fields: [requestedById], references: [id])
+  requestedDept     String?         // PR, QC, GA, HS, SC, QA
+  
+  // Relasi ke Ruangan
+  roomId            String?
+  room              Room?           @relation(fields: [roomId], references: [id])
+  
+  // Penutup WO
+  closedById        String?
+  closedBy          User?           @relation("WoCloser", fields: [closedById], references: [id])
+  
+  // Storing assigned technician IDs as JSON array of strings
+  assignedToIds     String[]
+  assignedNames     String[]        // Denormalized names for display
+  attachments       String[]        // URL foto saat request awal (opsional)
+  completionAttachments String[]    // URL foto hasil penyelesaian dari teknisi (opsional)
+  
+  adminNotes        String?
+  techNotes         String?         // Notes from technician when completing
+  estimatedDuration Int?            // in minutes
+  actualDuration    Int?            // in minutes
+  
+  startedAt         DateTime?
+  completedAt       DateTime?
+  closedAt          DateTime?
+  rating            Int?            // 1 to 5
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  updates           WoUpdate[]
+  partsTaken        WorkOrderPart[] // Part yang diambil untuk WO ini
+}
+
+model WoUpdate {
+  id          String    @id @default(cuid())
+  woId        String
+  userId      String?
+  action      String    // 'STATUS_CHANGED', 'NOTE_ADDED', etc.
+  oldStatus   String?
+  newStatus   String?
+  note        String?
+  attachments String[]  // URLs
+
+  createdAt   DateTime  @default(now())
+
+  workOrder   WorkOrder @relation(fields: [woId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model PmTemplate {
+  id                String       @id @default(cuid())
+  name              String
+  equipmentName     String
+  description       String?
+  classification    Classification
+  frequency         PmFrequency
+  estimatedDuration Int?         // minutes
+  
+  defaultTechId     String?
+  defaultTech       User?        @relation("PmDefaultTech", fields: [defaultTechId], references: [id])
+  
+  checklistItems    String       // Storing JSON string for checklist schema
+  isActive          Boolean      @default(true)
+  
+  createdById       String?
+  createdBy         User?        @relation("PmTemplateCreator", fields: [createdById], references: [id])
+  
+  createdAt         DateTime     @default(now())
+  
+  schedules         PmSchedule[]
+}
+
+model PmSchedule {
+  id              String      @id @default(cuid())
+  templateId      String
+  scheduledDate   DateTime
+  
+  assignedToId    String?
+  assignedTo      User?       @relation("PmScheduleAssignee", fields: [assignedToId], references: [id])
+  
+  status          PmStatus    @default(PENDING)
+  checklistData   String?     // Storing JSON string for checked status
+  technicianNotes String?
+  attachments     String[]
+  
+  completedAt     DateTime?
+  createdAt       DateTime    @default(now())
+
+  template        PmTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// WORK ORDER PARTS - Pengambilan Part oleh Teknisi
+// ---------------------------------------------------------------------------
+
+model WorkOrderPart {
+  id              String    @id @default(cuid())
+  workOrderId     String
+  partId          String
+  qtyTaken        Int       // Jumlah part yang diambil
+  takenById       String    // ID teknisi yang mengambil
+  takenAt         DateTime  @default(now())
+  locationNotes   String    // Wajib - lokasi/penggunaan part (contoh: "Compressor #C-12 di Ruang Produksi 2")
+  
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  part            Part      @relation(fields: [partId], references: [id], onDelete: Cascade)
+  takenBy         User      @relation(fields: [takenById], references: [id], onDelete: Cascade)
+
+  @@index([workOrderId])
+  @@index([takenById])
+  @@index([takenAt])
+}
+
+// ---------------------------------------------------------------------------
+// NOTIFICATIONS - Sistem Notifikasi Real-time
+// ---------------------------------------------------------------------------
+
+enum NotificationType {
+  WO_CREATED
+  WO_ASSIGNED
+  WO_STATUS_CHANGED
+  WO_COMPLETED
+  INBOUND
+  OUTBOUND
+  STOCK_LOW
+  TOOL_BORROWED
+  TOOL_RETURNED
+  PM_DUE
+}
+
+enum NotificationReferenceType {
+  WORK_ORDER
+  PART
+  TOOL
+  PM_SCHEDULE
+}
+
+model Notification {
+  id              String                  @id @default(cuid())
+  userId          String                  // User penerima notifikasi
+  title           String                  // Judul singkat notifikasi
+  message         String                  // Deskripsi notifikasi
+  type            NotificationType        // Tipe notifikasi
+  referenceId     String?                 // ID referensi (WO ID, Part ID, dll)
+  referenceType   NotificationReferenceType? // Tipe referensi
+  isRead          Boolean                 @default(false)
+  createdAt       DateTime                @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+

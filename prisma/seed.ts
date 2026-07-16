@@ -79,7 +79,31 @@ async function main() {
     });
   }
 
-  // 4. Seeding Tujuan Penggunaan (Usage Purposes)
+  // 4a. Seeding Unit of Measure (Satuan)
+  console.log('Seeding Satuan Stok...');
+  const defaultUnits = [
+    { name: 'Unit', label: 'unit' },
+    { name: 'Roll', label: 'roll' },
+    { name: 'Pcs', label: 'pcs' },
+    { name: 'Box', label: 'box' },
+    { name: 'Pack', label: 'pack' },
+    { name: 'Kg', label: 'kg' },
+    { name: 'Meter', label: 'meter' },
+    { name: 'Liter', label: 'liter' },
+    { name: 'Set', label: 'set' },
+    { name: 'Lembar', label: 'lembar' },
+    { name: 'Botol', label: 'botol' },
+    { name: 'Karton', label: 'karton' },
+  ];
+  for (const u of defaultUnits) {
+    await prisma.unitOfMeasure.upsert({
+      where: { name: u.name },
+      create: u,
+      update: u,
+    });
+  }
+
+  // 4b. Seeding Tujuan Penggunaan (Usage Purposes)
   console.log('Seeding Tujuan Penggunaan...');
   for (const p of data.usagePurposes) {
     await prisma.usagePurpose.create({
@@ -92,7 +116,7 @@ async function main() {
     });
   }
 
-  // 5. Seeding Mesin
+  // 5. Seeding Mesin (dengan field baru: machineType, manufacturer, powerWatt, airPressureValue)
   console.log('Seeding Mesin...');
   for (const m of data.machines) {
     await prisma.machine.create({
@@ -102,6 +126,10 @@ async function main() {
         description: m.description || null,
         area: m.area || null,
         status: m.status,
+        machineType: m.machineType || null,
+        manufacturer: m.manufacturer || null,
+        powerWatt: m.powerWatt || null,
+        airPressureValue: m.airPressureValue || null,
         createdAt: new Date(m.createdAt),
         updatedAt: new Date(m.updatedAt)
       }
@@ -174,6 +202,55 @@ async function main() {
         date: new Date(t.date)
       }
     });
+  }
+
+  // 10. Seeding WorkOrders
+  console.log('Seeding Work Orders...');
+  if (data.workOrders) {
+    for (const wo of data.workOrders) {
+      await prisma.workOrder.create({
+        data: {
+          id: wo.id,
+          woNumber: wo.woNumber,
+          title: wo.title,
+          description: wo.description,
+          location: wo.location || '',
+          category: wo.category || 'PERBAIKAN',
+          classification: wo.classification || 'MECHANIC',
+          jobCategory: wo.jobCategory || 'MACHINERY',
+          priority: wo.priority || 'LOW',
+          status: wo.status || 'OPEN',
+          requestedById: wo.requestedBy || null,
+          assignedToIds: wo.assignedTo ? [wo.assignedTo] : [],
+          assignedNames: wo.assignedTo ? [wo.assignedTo.replace('usr-', '').toUpperCase()] : [],
+          attachments: [],
+          completionAttachments: [],
+          dueDate: wo.dueDate ? new Date(wo.dueDate) : null,
+          startedAt: wo.startedAt ? new Date(wo.startedAt) : null,
+          completedAt: wo.completedAt ? new Date(wo.completedAt) : null,
+          createdAt: new Date(wo.createdAt),
+          updatedAt: new Date(wo.updatedAt)
+        }
+      });
+    }
+  }
+
+  // 11. Seeding WorkOrderParts (Pengambilan Part)
+  console.log('Seeding Work Order Parts...');
+  if (data.workOrderParts) {
+    for (const wop of data.workOrderParts) {
+      await prisma.workOrderPart.create({
+        data: {
+          id: wop.id,
+          workOrderId: wop.workOrderId,
+          partId: wop.partId,
+          qtyTaken: wop.qtyTaken,
+          takenById: wop.takenByTechnicianId,
+          takenAt: new Date(wop.takenAt),
+          locationNotes: wop.notes
+        }
+      });
+    }
   }
 
   console.log('Database seeding selesai dengan sukses!');

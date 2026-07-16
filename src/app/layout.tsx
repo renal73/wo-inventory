@@ -1,23 +1,31 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Poppins, Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import { AuthProvider } from '@/components/auth/AuthContext';
 import { ThemeProvider } from '@/components/theme/ThemeContext';
 import { Shell } from '@/components/layout/Shell';
 import './globals.css';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const jakartaSans = Plus_Jakarta_Sans({
+  variable: '--font-jakarta',
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
 });
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const poppins = Poppins({
+  variable: '--font-poppins',
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800', '900'],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-jetbrains',
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
 });
 
 export const metadata: Metadata = {
-  title: 'Anvita System — Sistem Manajemen Inventaris Suku Cadang',
-  description: 'Sistem tunggal pencatatan inventaris suku cadang engineering PT Anvita Pharma Indonesia',
+  title: 'ENGSYS — Engineering System',
+  description: 'Engineering system untuk manajemen inventori, maintenance, dan work order. Dari Laporan, Menuju Solusi.',
   icons: {
     icon: '/favicon.ico',
   }
@@ -31,7 +39,7 @@ export default function RootLayout({
   return (
     <html
       lang="id"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${jakartaSans.variable} ${poppins.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
         <script
@@ -48,7 +56,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="h-full bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-200">
+      <body className="h-full bg-slate-50 dark:bg-slate-950 transition-colors duration-200">
         <ThemeProvider>
           <AuthProvider>
             <Shell>{children}</Shell>

@@ -13,6 +13,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       where: { id },
       include: {
         category: true,
+        unitOfMeasure: true,
         machineParts: {
           include: {
             machine: true
@@ -56,6 +57,11 @@ export async function GET(request: Request, { params }: RouteParams) {
         icon: part.category.icon,
         createdAt: part.category.createdAt.toISOString()
       } : null,
+      unitOfMeasure: part.unitOfMeasure ? {
+        id: part.unitOfMeasure.id,
+        name: part.unitOfMeasure.name,
+        label: part.unitOfMeasure.label
+      } : null,
       machines
     });
   } catch (error) {
@@ -83,7 +89,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { name, description, categoryId, minStockAlert, rackLocation, vendor } = body;
+    const { name, description, categoryId, unitOfMeasureId, minStockAlert, rackLocation, vendor } = body;
 
     if (!name || !categoryId) {
       return NextResponse.json(
@@ -109,6 +115,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         name: name.trim(),
         description: description ? description.trim() : null,
         categoryId,
+        unitOfMeasureId: unitOfMeasureId || null,
         minStockAlert: Number(minStockAlert) || 5,
         rackLocation: rackLocation ? rackLocation.trim() : null,
         vendor: vendor ? vendor.trim() : null

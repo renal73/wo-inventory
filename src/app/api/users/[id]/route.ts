@@ -32,9 +32,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
-    const updateData: { name: string; role: 'ADMIN' | 'USER'; passwordHash?: string } = {
+    const updateData: { name: string; role: 'ADMIN' | 'USER' | 'WAREHOUSE' | 'TECHNICIAN' | 'OPERATOR' | 'QC_ANALYST'; passwordHash?: string } = {
       name: name.trim(),
-      role: role as 'ADMIN' | 'USER'
+      role: role as 'ADMIN' | 'USER' | 'WAREHOUSE' | 'TECHNICIAN' | 'OPERATOR' | 'QC_ANALYST'
     };
 
     let message = 'User berhasil diperbarui';

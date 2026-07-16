@@ -40,7 +40,7 @@ export function proxy(request: NextRequest) {
   const isAuthApi = pathname.startsWith('/api/auth');
 
   // Jika belum login dan mengakses halaman yang butuh proteksi
-  if (!user && !isLoginPage && !isAuthApi && !pathname.startsWith('/api/health')) {
+  if (!user && !isLoginPage && !isAuthApi && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/test-users')) {
     // Jika itu request API, kembalikan JSON 401
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
@@ -82,6 +82,39 @@ export function proxy(request: NextRequest) {
     if (isAdminApi) {
       return NextResponse.json(
         { message: 'Akses ditolak. Anda memerlukan peran Administrator.' },
+        { status: 403 }
+      );
+    }
+  }
+
+  // Proteksi Khusus Role OPERATOR & QC_ANALYST
+  if (user && (user.role === 'OPERATOR' || user.role === 'QC_ANALYST')) {
+    // Hanya boleh akses: /, /tools, /maintenance/work-orders, dan /api/work-orders
+    const isAllowedPage = 
+      pathname === '/' || 
+      pathname.startsWith('/tools') || 
+      pathname.startsWith('/maintenance/work-orders');
+      
+    const isAllowedApi = 
+      pathname.startsWith('/api/work-orders') || 
+      pathname.startsWith('/api/tools') ||
+      pathname.startsWith('/api/parts/history') ||
+      pathname.startsWith('/api/health');
+      // Note: /api/technicians hanya untuk Admin (protected by API itself)
+      
+    if (!isAllowedPage && !pathname.startsWith('/api/')) {
+      if (pathname === '/maintenance') {
+        const redirectUrl = new URL('/maintenance/work-orders', request.url);
+        return NextResponse.redirect(redirectUrl);
+      }
+      const forbiddenUrl = new URL('/', request.url);
+      forbiddenUrl.searchParams.set('error', 'unauthorized_role');
+      return NextResponse.redirect(forbiddenUrl);
+    }
+    
+    if (pathname.startsWith('/api/') && !isAllowedApi && !isAuthApi) {
+      return NextResponse.json(
+        { message: 'Akses API ditolak untuk role Anda.' },
         { status: 403 }
       );
     }

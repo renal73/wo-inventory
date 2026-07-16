@@ -8,6 +8,7 @@ import {
   Layers, 
   HelpCircle, 
   Upload, 
+  Download,
   Database, 
   Users, 
   Plus, 
@@ -22,7 +23,11 @@ import {
   Wrench,
   Cpu,
   Package,
-  X
+  X,
+  FileSpreadsheet,
+  AlertCircle,
+  Ruler,
+  MapPin
 } from 'lucide-react';
 
 export default function AdminPanelPage() {
@@ -32,6 +37,7 @@ export default function AdminPanelPage() {
   // State master
   const [categories, setCategories] = useState<any[]>([]);
   const [purposes, setPurposes] = useState<any[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   
   // State feedback
@@ -45,6 +51,10 @@ export default function AdminPanelPage() {
   
   const [newPurposeName, setNewPurposeName] = useState('');
 
+  // Form Satuan states
+  const [newUnitName, setNewUnitName] = useState('');
+  const [newUnitLabel, setNewUnitLabel] = useState('');
+
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importMachineFile, setImportMachineFile] = useState<File | null>(null);
@@ -57,11 +67,35 @@ export default function AdminPanelPage() {
   const [userFormData, setUserFormData] = useState({
     username: '',
     name: '',
-    role: 'USER' as 'ADMIN' | 'USER',
+    role: 'USER' as 'ADMIN' | 'USER' | 'WAREHOUSE' | 'TECHNICIAN' | 'OPERATOR' | 'QC_ANALYST',
     resetPassword: false
   });
   const [userFormError, setUserFormError] = useState('');
   const [userFormLoading, setUserFormLoading] = useState(false);
+
+  // Work Orders Admin State
+  const [woCount, setWoCount] = useState<number>(0);
+  const [woLoading, setWoLoading] = useState(false);
+  const [woImportFile, setWoImportFile] = useState<File | null>(null);
+  const [woImportLoading, setWoImportLoading] = useState(false);
+  const [woDeleteConfirmOpen, setWoDeleteConfirmOpen] = useState(false);
+  const [woDeleting, setWoDeleting] = useState(false);
+
+  // Tools Admin State
+  const [toolsCount, setToolsCount] = useState<number>(0);
+  const [toolsLoading, setToolsLoading] = useState(false);
+  const [toolsImportFile, setToolsImportFile] = useState<File | null>(null);
+  const [toolsImportLoading, setToolsImportLoading] = useState(false);
+  const [toolsDeleteConfirmOpen, setToolsDeleteConfirmOpen] = useState(false);
+  const [toolsDeleting, setToolsDeleting] = useState(false);
+
+  // Rooms Admin State
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
+  const [newRoomName, setNewRoomName] = useState('');
+  const [newRoomLocation, setNewRoomLocation] = useState('');
+  const [roomsImportFile, setRoomsImportFile] = useState<File | null>(null);
+  const [roomsImportLoading, setRoomsImportLoading] = useState(false);
 
   // List icon kategori
   const iconList = [
@@ -71,23 +105,41 @@ export default function AdminPanelPage() {
     { name: 'Cpu', icon: Cpu }
   ];
 
+  // Load Work Orders & Tools count on mount
   useEffect(() => {
     if (isAdmin) {
       loadAllData();
+      loadWoCount();
+      loadToolsCount();
+      loadRooms();
     }
   }, [isAdmin]);
+
+  const loadWoCount = async () => {
+    try {
+      setWoLoading(true);
+      const res = await api.workOrdersAdmin.getCount();
+      setWoCount(res.count);
+    } catch (err) {
+      console.error('Gagal memuat jumlah work orders:', err);
+    } finally {
+      setWoLoading(false);
+    }
+  };
 
   const loadAllData = async () => {
     try {
       setLoading(true);
-      const [cats, purs, usrs] = await Promise.all([
+      const [cats, purs, usrs, unts] = await Promise.all([
         api.categories.list(),
         api.purposes.list(),
-        api.users.list()
+        api.users.list(),
+        fetch('/api/unit-of-measures').then(r => r.json())
       ]);
       setCategories(cats);
       setPurposes(purs);
       setUsers(usrs);
+      setUnits(unts);
     } catch (err) {
       console.error('Gagal memuat data admin:', err);
     } finally {
@@ -128,6 +180,41 @@ export default function AdminPanelPage() {
       showSuccess('Kategori berhasil dihapus');
     } catch (err: any) {
       showError(err.message || 'Gagal menghapus kategori');
+    }
+  };
+
+  // --- SATUAN CRUD ---
+  const handleAddUnit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUnitName || !newUnitLabel) return;
+
+    try {
+      const res = await fetch('/api/unit-of-measures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newUnitName, label: newUnitLabel })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setNewUnitName('');
+      setNewUnitLabel('');
+      loadAllData();
+      showSuccess('Satuan baru berhasil ditambahkan');
+    } catch (err: any) {
+      showError(err.message || 'Gagal menambahkan satuan');
+    }
+  };
+
+  const handleDeleteUnit = async (id: string) => {
+    if (!confirm('Hapus satuan ini?')) return;
+    try {
+      const res = await fetch(`/api/unit-of-measures?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      loadAllData();
+      showSuccess('Satuan berhasil dihapus');
+    } catch (err: any) {
+      showError(err.message || 'Gagal menghapus satuan');
     }
   };
 
@@ -254,14 +341,296 @@ export default function AdminPanelPage() {
     }
   };
 
-  const handleDatabaseClear = async () => {
+  const handleClearParts = async () => {
     if (!confirm('🚨 BAHAYA: Ini akan menghapus seluruh data barang (suku cadang) sampai kosong dari database, beserta semua riwayat transaksi masuk/keluar dan pemetaan mesin. Lanjutkan?')) return;
     try {
-      const res = await api.utils.clearDb();
+      const res = await api.utils.clearDbParts();
       loadAllData();
       showSuccess(res.message);
     } catch (err: any) {
-      showError(err.message || 'Gagal mengosongkan database');
+      showError(err.message || 'Gagal mengosongkan data barang');
+    }
+  };
+
+  const handleClearMachines = async () => {
+    if (!confirm('🚨 BAHAYA: Ini akan menghapus seluruh data mesin produksi sampai kosong dari database. Riwayat transaksi akan tetap ada namun referensi mesinnya akan dihilangkan. Lanjutkan?')) return;
+    try {
+      const res = await api.utils.clearDbMachines();
+      loadAllData();
+      showSuccess(res.message);
+    } catch (err: any) {
+      showError(err.message || 'Gagal mengosongkan data mesin');
+    }
+  };
+
+  // --- WORK ORDERS ADMIN OPERATIONS ---
+  const handleExportWorkOrders = async (format: 'csv' | 'excel' = 'csv') => {
+    try {
+      setWoLoading(true);
+      const response = format === 'excel' 
+        ? await api.workOrdersAdmin.exportExcel()
+        : await api.workOrdersAdmin.export();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const date = new Date().toISOString().split('T')[0];
+      a.download = format === 'excel' 
+        ? `work-orders-export-${date}.xlsx`
+        : `work-orders-export-${date}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      showSuccess(`Work orders berhasil diexport ke ${format.toUpperCase()}`);
+    } catch (err: any) {
+      showError(err.message || 'Gagal export work orders');
+    } finally {
+      setWoLoading(false);
+    }
+  };
+
+  const handleDownloadTemplate = async (format: 'csv' | 'excel' = 'csv') => {
+    try {
+      const response = format === 'excel'
+        ? await api.workOrdersAdmin.getTemplateExcel()
+        : await api.workOrdersAdmin.getTemplate();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = format === 'excel'
+        ? 'work-orders-import-template.xlsx'
+        : 'work-orders-import-template.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      showSuccess(`Template ${format.toUpperCase()} berhasil didownload`);
+    } catch (err: any) {
+      showError(err.message || 'Gagal download template');
+    }
+  };
+
+  const handleImportWorkOrders = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!woImportFile) return;
+
+    const fileExt = woImportFile.name.split('.').pop()?.toLowerCase();
+    if (fileExt !== 'csv' && fileExt !== 'xlsx' && fileExt !== 'xls') {
+      showError('Format file harus CSV atau Excel (.xlsx, .xls)');
+      return;
+    }
+
+    try {
+      setWoImportLoading(true);
+      const fd = new FormData();
+      fd.append('file', woImportFile);
+      const res = await api.workOrdersAdmin.import(fd);
+      showSuccess(res.message);
+      setWoImportFile(null);
+      const input = document.getElementById('woImportFileInput') as HTMLInputElement;
+      if (input) input.value = '';
+      loadWoCount();
+    } catch (err: any) {
+      showError(err.message || 'Gagal import work orders');
+    } finally {
+      setWoImportLoading(false);
+    }
+  };
+
+  const handleDeleteAllWorkOrders = async () => {
+    try {
+      setWoDeleting(true);
+      const res = await api.workOrdersAdmin.deleteAll();
+      showSuccess(res.message);
+      setWoDeleteConfirmOpen(false);
+      loadWoCount();
+    } catch (err: any) {
+      showError(err.message || 'Gagal menghapus work orders');
+    } finally {
+      setWoDeleting(false);
+    }
+  };
+
+  // --- ROOMS ADMIN OPERATIONS ---
+  const loadRooms = async () => {
+    try {
+      setRoomsLoading(true);
+      const res = await fetch('/api/rooms');
+      const data = await res.json();
+      setRooms(Array.isArray(data) ? data : data.rooms || []);
+    } catch (err) {
+      console.error('Gagal memuat data ruangan:', err);
+    } finally {
+      setRoomsLoading(false);
+    }
+  };
+
+  const handleAddRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRoomName.trim()) return;
+    try {
+      await api.rooms.create({ name: newRoomName.trim(), description: newRoomLocation.trim() || undefined });
+      setNewRoomName('');
+      setNewRoomLocation('');
+      loadRooms();
+      showSuccess('Ruangan berhasil ditambahkan');
+    } catch (err: any) {
+      showError(err.message || 'Gagal menambahkan ruangan');
+    }
+  };
+
+  const handleDeleteRoom = async (id: string) => {
+    if (!confirm('Hapus ruangan ini?')) return;
+    try {
+      await api.rooms.delete(id);
+      loadRooms();
+      showSuccess('Ruangan berhasil dihapus');
+    } catch (err: any) {
+      showError(err.message || 'Gagal menghapus ruangan');
+    }
+  };
+
+  const handleImportRooms = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!roomsImportFile) return;
+    try {
+      setRoomsImportLoading(true);
+      const fd = new FormData();
+      fd.append('file', roomsImportFile);
+      const res = await fetch('/api/rooms/import', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showSuccess(data.message);
+      setRoomsImportFile(null);
+      const input = document.getElementById('roomsImportFileInput') as HTMLInputElement;
+      if (input) input.value = '';
+      loadRooms();
+    } catch (err: any) {
+      showError(err.message || 'Gagal import ruangan');
+    } finally {
+      setRoomsImportLoading(false);
+    }
+  };
+
+  const handleExportRooms = async () => {
+    try {
+      const response = await fetch('/api/rooms/export');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rooms-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      showSuccess('Ruangan berhasil diexport');
+    } catch (err: any) {
+      showError(err.message || 'Gagal export ruangan');
+    }
+  };
+
+  // --- TOOLS ADMIN OPERATIONS ---
+  const loadToolsCount = async () => {
+    try {
+      setToolsLoading(true);
+      const res = await api.toolsAdmin.getCount();
+      setToolsCount(res.count);
+    } catch (err) {
+      console.error('Gagal memuat jumlah tools:', err);
+    } finally {
+      setToolsLoading(false);
+    }
+  };
+
+  const handleExportTools = async (format: 'csv' | 'excel' = 'csv') => {
+    try {
+      setToolsLoading(true);
+      const response = format === 'excel'
+        ? await api.toolsAdmin.exportExcel()
+        : await api.toolsAdmin.export();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const date = new Date().toISOString().split('T')[0];
+      a.download = format === 'excel'
+        ? `tools-export-${date}.xlsx`
+        : `tools-export-${date}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      showSuccess(`Tools berhasil diexport ke ${format.toUpperCase()}`);
+    } catch (err: any) {
+      showError(err.message || 'Gagal export tools');
+    } finally {
+      setToolsLoading(false);
+    }
+  };
+
+  const handleDownloadToolsTemplate = async (format: 'csv' | 'excel' = 'csv') => {
+    try {
+      const response = format === 'excel'
+        ? await api.toolsAdmin.getTemplateExcel()
+        : await api.toolsAdmin.getTemplate();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = format === 'excel'
+        ? 'tools-import-template.xlsx'
+        : 'tools-import-template.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      showSuccess(`Template ${format.toUpperCase()} berhasil didownload`);
+    } catch (err: any) {
+      showError(err.message || 'Gagal download template');
+    }
+  };
+
+  const handleImportTools = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!toolsImportFile) return;
+
+    const fileExt = toolsImportFile.name.split('.').pop()?.toLowerCase();
+    if (fileExt !== 'csv' && fileExt !== 'xlsx' && fileExt !== 'xls') {
+      showError('Format file harus CSV atau Excel (.xlsx, .xls)');
+      return;
+    }
+
+    try {
+      setToolsImportLoading(true);
+      const fd = new FormData();
+      fd.append('file', toolsImportFile);
+      const res = await api.toolsAdmin.import(fd);
+      showSuccess(res.message);
+      setToolsImportFile(null);
+      const input = document.getElementById('toolsImportFileInput') as HTMLInputElement;
+      if (input) input.value = '';
+      loadToolsCount();
+    } catch (err: any) {
+      showError(err.message || 'Gagal import tools');
+    } finally {
+      setToolsImportLoading(false);
+    }
+  };
+
+  const handleDeleteAllTools = async () => {
+    try {
+      setToolsDeleting(true);
+      const res = await api.toolsAdmin.deleteAll();
+      showSuccess(res.message);
+      setToolsDeleteConfirmOpen(false);
+      loadToolsCount();
+    } catch (err: any) {
+      showError(err.message || 'Gagal menghapus tools');
+    } finally {
+      setToolsDeleting(false);
     }
   };
 
@@ -429,6 +798,67 @@ export default function AdminPanelPage() {
             </div>
           </div>
 
+          {/* SEKSI 1b: Kelola Satuan Stok */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col space-y-4">
+            <h3 className="text-xs font-bold text-slate-950 dark:text-slate-100 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center gap-1.5">
+              <Ruler size={14} className="text-blue-600" />
+              <span>Kelola Satuan Stok</span>
+            </h3>
+
+            {/* Form Tambah Satuan */}
+            <form onSubmit={handleAddUnit} className="flex gap-2 items-end">
+              <div className="flex-1 space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nama Satuan</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Roll, Pcs, Box..."
+                  value={newUnitName}
+                  onChange={(e) => setNewUnitName(e.target.value)}
+                  className="w-full h-8 px-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden focus:border-blue-500"
+                />
+              </div>
+              <div className="flex-1 space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Label</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: roll, pcs, box..."
+                  value={newUnitLabel}
+                  onChange={(e) => setNewUnitLabel(e.target.value)}
+                  className="w-full h-8 px-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden focus:border-blue-500"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-3.5 h-8 text-[11px] font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md shadow-blue-600/10 cursor-pointer shrink-0"
+              >
+                Tambah
+              </button>
+            </form>
+
+            {/* List Satuan */}
+            <div className="flex-1 overflow-y-auto max-h-40 divide-y divide-slate-100 dark:divide-slate-800/80">
+              {units.map((u) => (
+                <div key={u.id} className="flex items-center justify-between py-2.5 text-xs">
+                  <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
+                    <span>{u.name}</span>
+                    <span className="text-[9px] text-slate-400 font-mono">({u.label})</span>
+                    <span className="text-[9px] text-slate-400">— {u._count?.parts || 0} part</span>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteUnit(u.id)}
+                    className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                    title="Hapus Satuan"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+              {units.length === 0 && (
+                <p className="text-[10px] text-slate-400 py-2">Belum ada satuan yang terdaftar.</p>
+              )}
+            </div>
+          </div>
+
           {/* SEKSI 2: Tujuan Penggunaan */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col space-y-4">
             <h3 className="text-xs font-bold text-slate-950 dark:text-slate-100 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center gap-1.5">
@@ -584,7 +1014,7 @@ export default function AdminPanelPage() {
               <span>Manajemen Database Sistem</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <button
                 onClick={handleDatabaseSeed}
                 className="flex items-center justify-center gap-1.5 px-4 h-9 font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer border border-slate-200 dark:border-slate-700"
@@ -594,11 +1024,19 @@ export default function AdminPanelPage() {
               </button>
 
               <button
-                onClick={handleDatabaseClear}
+                onClick={handleClearParts}
                 className="flex items-center justify-center gap-1.5 px-4 h-9 font-bold bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400 rounded-lg hover:bg-red-100/30 transition-colors cursor-pointer border border-red-200 dark:border-red-900/50"
               >
                 <Trash2 size={13} />
-                <span>Kosongkan Database</span>
+                <span>Kosongkan Data Barang</span>
+              </button>
+
+              <button
+                onClick={handleClearMachines}
+                className="flex items-center justify-center gap-1.5 px-4 h-9 font-bold bg-orange-50 text-orange-600 dark:bg-orange-950/20 dark:text-orange-400 rounded-lg hover:bg-orange-100/30 transition-colors cursor-pointer border border-orange-200 dark:border-orange-900/50"
+              >
+                <Trash2 size={13} />
+                <span>Kosongkan Data Mesin</span>
               </button>
             </div>
             <p className="text-[9px] text-slate-400 italic">
@@ -606,6 +1044,367 @@ export default function AdminPanelPage() {
             </p>
           </div>
 
+        </div>
+
+        {/* SEKSI B-1: Work Orders Admin - Import / Export / Delete All */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h3 className="text-xs font-bold text-slate-950 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+              <FileSpreadsheet size={14} className="text-blue-600" />
+              <span>Manajemen Work Orders (Import / Export)</span>
+            </h3>
+            <div className="flex items-center gap-2">
+              {woLoading ? (
+                <span className="text-[10px] text-slate-400">Memuat...</span>
+              ) : (
+                <span className="px-2.5 py-1 text-[10px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg">
+                  {woCount} Work Orders
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Export Section */}
+            <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
+                  <Download size={16} className="text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200">Export Work Orders</h4>
+                  <p className="text-[9px] text-slate-400">Download semua data WO ke CSV atau Excel</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleExportWorkOrders('csv')}
+                  disabled={woLoading || woCount === 0}
+                  className="flex-1 px-3 py-2 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md shadow-emerald-600/10 cursor-pointer"
+                >
+                  {woLoading ? '...' : '📥 CSV'}
+                </button>
+                <button
+                  onClick={() => handleExportWorkOrders('excel')}
+                  disabled={woLoading || woCount === 0}
+                  className="flex-1 px-3 py-2 text-[11px] font-bold bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md shadow-blue-600/10 cursor-pointer"
+                >
+                  {woLoading ? '...' : '📊 Excel'}
+                </button>
+              </div>
+            </div>
+
+            {/* Import Section */}
+            <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <Upload size={16} className="text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200">Import Work Orders</h4>
+                  <p className="text-[9px] text-slate-400">Upload data WO dari file CSV atau Excel</p>
+                </div>
+              </div>
+              <form onSubmit={handleImportWorkOrders} className="space-y-2">
+                <input
+                  id="woImportFileInput"
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={(e) => setWoImportFile(e.target.files?.[0] || null)}
+                  className="w-full text-[10px] text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                />
+                <button
+                  type="submit"
+                  disabled={woImportLoading || !woImportFile}
+                  className="w-full px-3 py-2 text-[11px] font-bold bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md shadow-blue-600/10 cursor-pointer"
+                >
+                  {woImportLoading ? 'Mengimpor...' : '📤 Import CSV/Excel'}
+                </button>
+              </form>
+            </div>
+
+            {/* Template & Delete Section */}
+            <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                  <FileSpreadsheet size={16} className="text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200">Template & Hapus Semua</h4>
+                  <p className="text-[9px] text-slate-400">Download template CSV/Excel</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleDownloadTemplate('csv')}
+                  className="flex-1 px-3 py-2 text-[10px] font-bold bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all shadow-md shadow-purple-600/10 cursor-pointer"
+                >
+                  📋 CSV
+                </button>
+                <button
+                  onClick={() => handleDownloadTemplate('excel')}
+                  className="flex-1 px-3 py-2 text-[10px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                >
+                  📊 Excel
+                </button>
+              </div>
+              <button
+                onClick={() => setWoDeleteConfirmOpen(true)}
+                disabled={woCount === 0}
+                className="w-full px-3 py-2 text-[11px] font-bold bg-red-50 hover:bg-red-100 disabled:bg-slate-100 disabled:cursor-not-allowed text-red-600 border border-red-200 rounded-lg transition-all cursor-pointer"
+              >
+                🗑️ Hapus Semua Work Orders
+              </button>
+            </div>
+          </div>
+
+          {/* Info Note */}
+          <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-lg">
+            <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-[9px] text-amber-700 dark:text-amber-300 leading-relaxed">
+              <strong>Format Import:</strong> Title, Description, Location (wajib), Category, Priority, Classification, Job Category, Status (opsional). 
+              Kategori valid: PERBAIKAN, PEMBUATAN, INSTALASI, MODIFIKASI, KESELAMATAN. 
+              Priority: LOW, MEDIUM, HIGH.
+            </p>
+          </div>
+        </div>
+
+        {/* SEKSI B-3: Tools Admin - Import / Export / Delete All */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h3 className="text-xs font-bold text-slate-950 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+              <FileSpreadsheet size={14} className="text-cyan-600" />
+              <span>Manajemen Tools (Import / Export)</span>
+            </h3>
+            <div className="flex items-center gap-2">
+              {toolsLoading ? (
+                <span className="text-[10px] text-slate-400">Memuat...</span>
+              ) : (
+                <span className="px-2.5 py-1 text-[10px] font-bold bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-lg">
+                  {toolsCount} Tools
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Export Section */}
+            <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
+                  <Download size={16} className="text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200">Export Tools</h4>
+                  <p className="text-[9px] text-slate-400">Download semua data tools ke CSV atau Excel</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleExportTools('csv')}
+                  disabled={toolsLoading || toolsCount === 0}
+                  className="flex-1 px-3 py-2 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md shadow-emerald-600/10 cursor-pointer"
+                >
+                  {toolsLoading ? '...' : '📥 CSV'}
+                </button>
+                <button
+                  onClick={() => handleExportTools('excel')}
+                  disabled={toolsLoading || toolsCount === 0}
+                  className="flex-1 px-3 py-2 text-[11px] font-bold bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md shadow-blue-600/10 cursor-pointer"
+                >
+                  {toolsLoading ? '...' : '📊 Excel'}
+                </button>
+              </div>
+            </div>
+
+            {/* Import Section */}
+            <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <Upload size={16} className="text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200">Import Tools</h4>
+                  <p className="text-[9px] text-slate-400">Upload data tools dari file CSV</p>
+                </div>
+              </div>
+              <form onSubmit={handleImportTools} className="space-y-2">
+                <input
+                  id="toolsImportFileInput"
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={(e) => setToolsImportFile(e.target.files?.[0] || null)}
+                  className="w-full text-[10px] text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                />
+                <button
+                  type="submit"
+                  disabled={toolsImportLoading || !toolsImportFile}
+                  className="w-full px-3 py-2 text-[11px] font-bold bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md shadow-blue-600/10 cursor-pointer"
+                >
+                  {toolsImportLoading ? 'Mengimpor...' : '📤 Import CSV/Excel'}
+                </button>
+              </form>
+            </div>
+
+            {/* Template & Delete Section */}
+            <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                  <FileSpreadsheet size={16} className="text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200">Template & Hapus Semua</h4>
+                  <p className="text-[9px] text-slate-400">Download template CSV/Excel</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleDownloadToolsTemplate('csv')}
+                  className="flex-1 px-3 py-2 text-[10px] font-bold bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all shadow-md shadow-purple-600/10 cursor-pointer"
+                >
+                  📋 CSV
+                </button>
+                <button
+                  onClick={() => handleDownloadToolsTemplate('excel')}
+                  className="flex-1 px-3 py-2 text-[10px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                >
+                  📊 Excel
+                </button>
+              </div>
+              <button
+                onClick={() => setToolsDeleteConfirmOpen(true)}
+                disabled={toolsCount === 0}
+                className="w-full px-3 py-2 text-[11px] font-bold bg-red-50 hover:bg-red-100 disabled:bg-slate-100 disabled:cursor-not-allowed text-red-600 border border-red-200 rounded-lg transition-all cursor-pointer"
+              >
+                🗑️ Hapus Semua Tools
+              </button>
+            </div>
+          </div>
+
+          {/* Info Note */}
+          <div className="flex items-start gap-2 p-3 bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-900/50 rounded-lg">
+            <AlertCircle size={14} className="text-cyan-600 dark:text-cyan-400 mt-0.5 shrink-0" />
+            <p className="text-[9px] text-cyan-700 dark:text-cyan-300 leading-relaxed">
+              <strong>Format Import:</strong> name, brand, stock, picUsername (wajib: name, stock). Format file: CSV atau Excel (.xlsx, .xls).
+              Jika tool dengan nama yang sama sudah ada, akan diupdate datanya.
+            </p>
+          </div>
+        </div>
+
+          {/* SEKSI B-1b: Kelola Ruangan */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-xs font-bold text-slate-950 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin size={14} className="text-orange-600" />
+                <span>Kelola Ruangan / Lokasi</span>
+              </h3>
+              <div className="flex items-center gap-2">
+                {roomsLoading ? (
+                  <span className="text-[10px] text-slate-400">Memuat...</span>
+                ) : (
+                  <span className="px-2.5 py-1 text-[10px] font-bold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-lg">
+                    {rooms.length} Ruangan
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Form Tambah Ruangan */}
+            <form onSubmit={handleAddRoom} className="flex gap-2 items-end">
+              <div className="flex-1 space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nama Ruangan</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Gudang Utama, Workshop A..."
+                  value={newRoomName}
+                  onChange={(e) => setNewRoomName(e.target.value)}
+                  className="w-full h-8 px-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden focus:border-orange-500"
+                />
+              </div>
+              <div className="flex-1 space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Lokasi (Opsional)</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Gedung 1, Lantai 2..."
+                  value={newRoomLocation}
+                  onChange={(e) => setNewRoomLocation(e.target.value)}
+                  className="w-full h-8 px-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden focus:border-orange-500"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!newRoomName.trim()}
+                className="px-3.5 h-8 text-[11px] font-bold bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white rounded-lg transition-all shadow-md shadow-orange-600/10 cursor-pointer shrink-0"
+              >
+                Tambah
+              </button>
+            </form>
+
+            {/* Import & Export Buttons */}
+            <div className="flex gap-2 items-center">
+              <form onSubmit={handleImportRooms} className="flex gap-2 items-center flex-1">
+                <input
+                  id="roomsImportFileInput"
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={(e) => setRoomsImportFile(e.target.files?.[0] || null)}
+                  className="flex-1 text-[10px] text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                />
+                <button
+                  type="submit"
+                  disabled={roomsImportLoading || !roomsImportFile}
+                  className="px-3 h-7 text-[10px] font-bold bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg transition-all cursor-pointer shrink-0"
+                >
+                  {roomsImportLoading ? '...' : '📥 Import'}
+                </button>
+              </form>
+              <button
+                onClick={handleExportRooms}
+                disabled={rooms.length === 0}
+                className="px-3 h-7 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white rounded-lg transition-all cursor-pointer shrink-0"
+              >
+                📊 Export
+              </button>
+            </div>
+
+            {/* List Ruangan */}
+            <div className="overflow-y-auto max-h-48 divide-y divide-slate-100 dark:divide-slate-800/80">
+              {rooms.map((r) => (
+                <div key={r.id} className="flex items-center justify-between py-2.5 text-xs">
+                  <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
+                    <MapPin size={12} className="text-orange-500" />
+                    <span>{r.name}</span>
+                    {r.description && <span className="text-[9px] text-slate-400">({r.description})</span>}
+                    {r._count?.workOrders !== undefined && (
+                      <span className="text-[9px] text-slate-400">— {r._count.workOrders} WO</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleDeleteRoom(r.id)}
+                    className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                    title="Hapus Ruangan"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+              {rooms.length === 0 && !roomsLoading && (
+                <p className="text-[10px] text-slate-400 py-2">Belum ada ruangan yang terdaftar.</p>
+              )}
+            </div>
+          </div>
+
+          {/* SEKSI B-2: Pengaturan Maintenance (Placeholder) */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h3 className="text-xs font-bold text-slate-950 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+              <Settings size={14} className="text-blue-600" />
+              <span>Pengaturan Preventive Maintenance</span>
+            </h3>
+          </div>
+          <div className="text-xs text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 p-6 rounded-xl flex items-center justify-center">
+            [Konfigurasi Template PM & SLA Work Order akan dimuat di sini]
+          </div>
         </div>
 
         {/* SEKSI 5: Manajemen User (Full Width) */}
@@ -718,7 +1517,7 @@ export default function AdminPanelPage() {
                     required
                   />
                   {userFormMode === 'ADD' && (
-                    <p className="text-[9px] text-slate-400 mt-0.5">Password default akun baru: <span className="font-bold">username + &quot;123&quot;</span></p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Password default akun baru: <span className="font-bold">username + "123"</span></p>
                   )}
                 </div>
 
@@ -744,11 +1543,15 @@ export default function AdminPanelPage() {
                   </label>
                   <select
                     value={userFormData.role}
-                    onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value as 'ADMIN' | 'USER' })}
+                    onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value as 'ADMIN' | 'USER' | 'WAREHOUSE' | 'TECHNICIAN' | 'OPERATOR' | 'QC_ANALYST' })}
                     className="w-full h-9 px-3 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden focus:border-blue-500 text-slate-600 dark:text-slate-300"
                     required
                   >
-                    <option value="USER">USER (Teknisi Lapangan)</option>
+                    <option value="USER">USER (Operator Lapangan)</option>
+                    <option value="TECHNICIAN">TECHNICIAN (Teknisi Maintenance)</option>
+                    <option value="OPERATOR">OPERATOR (Operator Produksi)</option>
+                    <option value="QC_ANALYST">QC_ANALYST (Analis QC)</option>
+                    <option value="WAREHOUSE">WAREHOUSE (Petugas Gudang)</option>
                     <option value="ADMIN">ADMIN (Supervisor Gudang / Engineering)</option>
                   </select>
                 </div>
@@ -786,6 +1589,119 @@ export default function AdminPanelPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DELETE ALL WORK ORDERS CONFIRMATION */}
+        {woDeleteConfirmOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900/50 rounded-2xl shadow-xl overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle size={18} className="text-red-600 dark:text-red-400" />
+                  <h3 className="text-sm font-bold text-red-700 dark:text-red-300">
+                    Konfirmasi Hapus Semua Work Orders
+                  </h3>
+                </div>
+                <button onClick={() => setWoDeleteConfirmOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl">
+                  <p className="text-sm font-bold text-red-700 dark:text-red-300 mb-2">
+                    ⚠️ PERHATIAN: Tindakan ini tidak dapat dibatalkan!
+                  </p>
+                  <p className="text-xs text-red-600 dark:text-red-400 leading-relaxed">
+                    Anda akan menghapus <strong>{woCount} work order</strong> beserta semua data terkait, termasuk:
+                  </p>
+                  <ul className="mt-2 text-xs text-red-600 dark:text-red-400 list-disc list-inside space-y-1">
+                    <li>Riwayat update work order</li>
+                    <li>Part yang digunakan (work order parts)</li>
+                    <li>Semua lampiran terkait</li>
+                  </ul>
+                </div>
+
+                <p className="text-xs text-slate-500 text-center">
+                  Apakah Anda yakin ingin melanjutkan?
+                </p>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setWoDeleteConfirmOpen(false)}
+                    className="px-4 h-9 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteAllWorkOrders}
+                    disabled={woDeleting}
+                    className="px-4 h-9 text-xs font-semibold bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg transition-all shadow-md shadow-red-600/10 shrink-0 cursor-pointer"
+                  >
+                    {woDeleting ? 'Menghapus...' : `Ya, Hapus ${woCount} Work Orders`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DELETE ALL TOOLS CONFIRMATION */}
+        {toolsDeleteConfirmOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900/50 rounded-2xl shadow-xl overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle size={18} className="text-red-600 dark:text-red-400" />
+                  <h3 className="text-sm font-bold text-red-700 dark:text-red-300">
+                    Konfirmasi Hapus Semua Tools
+                  </h3>
+                </div>
+                <button onClick={() => setToolsDeleteConfirmOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl">
+                  <p className="text-sm font-bold text-red-700 dark:text-red-300 mb-2">
+                    ⚠️ PERHATIAN: Tindakan ini tidak dapat dibatalkan!
+                  </p>
+                  <p className="text-xs text-red-600 dark:text-red-400 leading-relaxed">
+                    Anda akan menghapus <strong>{toolsCount} tools</strong> beserta semua data terkait, termasuk:
+                  </p>
+                  <ul className="mt-2 text-xs text-red-600 dark:text-red-400 list-disc list-inside space-y-1">
+                    <li>Riwayat peminjaman tools</li>
+                    <li>Semua data tools</li>
+                  </ul>
+                </div>
+
+                <p className="text-xs text-slate-500 text-center">
+                  Apakah Anda yakin ingin melanjutkan?
+                </p>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setToolsDeleteConfirmOpen(false)}
+                    className="px-4 h-9 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteAllTools}
+                    disabled={toolsDeleting}
+                    className="px-4 h-9 text-xs font-semibold bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg transition-all shadow-md shadow-red-600/10 shrink-0 cursor-pointer"
+                  >
+                    {toolsDeleting ? 'Menghapus...' : `Ya, Hapus ${toolsCount} Tools`}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

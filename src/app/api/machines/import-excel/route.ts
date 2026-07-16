@@ -51,6 +51,8 @@ export async function POST(request: Request) {
         const rawArea = getVal(['area', 'lokasi']);
         const rawStatus = getVal(['status']);
         const rawDescription = getVal(['deskripsi', 'keterangan']);
+        const rawPowerKw = getVal(['dayakw', 'powerkw', 'daya', 'power']);
+        const rawAirPressure = getVal(['tekananudarabar', 'tekananudara', 'tekanan', 'airpressure']);
 
         if (!rawId || !rawName) {
           failedCount++;
@@ -62,6 +64,23 @@ export async function POST(request: Request) {
         const area = String(rawArea).trim() || null;
         let status = String(rawStatus).toUpperCase().trim();
         const description = String(rawDescription).trim() || null;
+
+        // Parse power (kW → Watt) dan tekanan (bar)
+        let powerWatt: number | null = null;
+        if (rawPowerKw !== '' && rawPowerKw !== null && rawPowerKw !== undefined) {
+          const kw = parseFloat(String(rawPowerKw));
+          if (!isNaN(kw)) {
+            powerWatt = Math.round(kw * 1000);
+          }
+        }
+
+        let airPressureValue: number | null = null;
+        if (rawAirPressure !== '' && rawAirPressure !== null && rawAirPressure !== undefined) {
+          const bar = parseFloat(String(rawAirPressure));
+          if (!isNaN(bar)) {
+            airPressureValue = bar;
+          }
+        }
 
         // Default status jika kosong
         if (!status) {
@@ -103,6 +122,8 @@ export async function POST(request: Request) {
               area,
               status: status as any,
               description,
+              powerWatt,
+              airPressureValue,
               updatedAt: new Date()
             }
           });
@@ -114,7 +135,9 @@ export async function POST(request: Request) {
               name,
               area,
               status: status as any,
-              description
+              description,
+              powerWatt,
+              airPressureValue
             }
           });
           createdCount++;

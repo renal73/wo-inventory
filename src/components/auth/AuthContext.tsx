@@ -8,7 +8,7 @@ interface User {
   id: string;
   username: string;
   name: string;
-  role: 'ADMIN' | 'USER';
+  role: 'ADMIN' | 'USER' | 'WAREHOUSE' | 'TECHNICIAN' | 'OPERATOR' | 'QC_ANALYST';
 }
 
 interface AuthContextType {
@@ -44,8 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Jalankan pengecekan sesi saat mount, kecuali jika berada di halaman login
-    if (pathname !== '/login') {
+    // Jalankan pengecekan sesi saat mount, kecuali jika berada di halaman login atau landing page
+    if (pathname !== '/login' && pathname !== '/') {
       fetchUser();
     } else {
       setLoading(false);
@@ -58,7 +58,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.auth.login({ username, password });
       if (res.success && res.user) {
         setUser(res.user);
-        router.push('/');
+        // Redirect berdasarkan role
+        if (res.user.role === 'ADMIN' || res.user.role === 'WAREHOUSE') {
+          router.push('/inventory/dashboard');
+        } else {
+          router.push('/maintenance');
+        }
         router.refresh();
       }
     } catch (err: any) {

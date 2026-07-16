@@ -5,7 +5,8 @@ export async function GET() {
   try {
     const parts = await prisma.part.findMany({
       include: {
-        category: true
+        category: true,
+        unitOfMeasure: true
       },
       orderBy: {
         id: 'asc'
@@ -18,6 +19,7 @@ export async function GET() {
       'Nama Suku Cadang',
       'Kategori',
       'Stok Fisik',
+      'Satuan',
       'Lokasi Rak',
       'Harga Satuan (Rp)',
       'Total Nilai Aset (Rp)',
@@ -43,6 +45,7 @@ export async function GET() {
         escape(p.name),
         escape(categoryName),
         escape(p.stock),
+        escape(p.unitOfMeasure?.label || 'unit'),
         escape(p.rackLocation || '-'),
         escape(p.price),
         escape(totalAsset),

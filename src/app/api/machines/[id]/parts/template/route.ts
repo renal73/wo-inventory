@@ -8,7 +8,8 @@ interface RouteParams {
 
 export async function GET(request: Request, { params }: RouteParams) {
   try {
-    const { id: machineId } = await params;
+    const { id: rawMachineId } = await params;
+    const machineId = decodeURIComponent(rawMachineId).replace(/___/g, '/');
 
     // Cek apakah mesin ada
     const machine = await prisma.machine.findUnique({

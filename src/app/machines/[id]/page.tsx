@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { MachinePartTable, AssignedPart } from '@/components/machines/MachinePartTable';
 import { AssignPartModal } from '@/components/machines/AssignPartModal';
+import { motion } from 'motion/react';
 import { 
   ArrowLeft, 
   Zap, 
@@ -17,7 +18,11 @@ import {
   X, 
   AlertTriangle,
   FileText,
-  MapPin
+  MapPin,
+  Cpu,
+  Factory,
+  Gauge,
+  Building2
 } from 'lucide-react';
 
 export default function MachineDetailPage() {
@@ -25,7 +30,7 @@ export default function MachineDetailPage() {
   const router = useRouter();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
-  const machineId = params.id as string;
+  const machineId = decodeURIComponent(params.id as string).replace(/___/g, '/');
 
   // State data mesin
   const [machine, setMachine] = useState<any>(null);
@@ -211,30 +216,57 @@ export default function MachineDetailPage() {
 
   if (!machine) {
     return (
-      <div className="flex flex-col items-center justify-center p-20 gap-3">
+      <motion.div 
+        className="flex flex-col items-center justify-center p-20 gap-3"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+      >
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
         <p className="text-xs font-semibold text-slate-500 animate-pulse">Memuat data mesin...</p>
-      </div>
+      </motion.div>
     );
   }
 
   // Filter part berdasarkan tab aktif
   const filteredParts = parts.filter(p => p.partType === activeTab);
 
+  // Specs untuk card summary
+  const specs = [
+    machine.manufacturer && { icon: Building2, label: 'Merk / Pabrikan', value: machine.manufacturer, color: '#dbeafe', textColor: 'rgb(37 99 235)' },
+    machine.machineType && { icon: Cpu, label: 'Tipe / Model', value: machine.machineType, color: '#e0e7ff', textColor: 'rgb(79 70 229)' },
+    machine.powerWatt && { icon: Zap, label: 'Daya Listrik', value: `${(machine.powerWatt / 1000).toFixed(1)} kW`, color: '#fef3c7', textColor: 'rgb(217 119 6)' },
+    machine.airPressureValue && { icon: Gauge, label: 'Tekanan Udara', value: `${machine.airPressureValue} bar`, color: '#fce7f3', textColor: 'rgb(219 39 119)' },
+    machine.area && { icon: MapPin, label: 'Area / Lokasi', value: machine.area, color: '#d1fae5', textColor: 'rgb(22 163 74)' },
+    machine.status && { icon: Factory, label: 'Status', value: machine.status, color: 'var(--bg-base)', textColor: 'var(--text-secondary)' },
+  ].filter(Boolean);
+
   return (
-    <div className="space-y-6">
+    <motion.div 
+      className="space-y-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
         
         {/* Tombol Kembali */}
-        <button
+        <motion.button
           onClick={() => router.push('/machines')}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          whileHover={{ x: -4 }}
         >
           <ArrowLeft size={14} />
           <span>Kembali ke Daftar Mesin</span>
-        </button>
+        </motion.button>
 
         {/* Header Metadata Mesin */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+        <motion.div 
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
           <div className="space-y-3 relative z-10 flex-1">
             <div className="flex flex-wrap items-center gap-3">
               <span className="font-mono text-sm font-black text-slate-400 dark:text-slate-500 tracking-wider">
@@ -262,92 +294,151 @@ export default function MachineDetailPage() {
           {/* Action Edit / Delete Mesin (Admin) */}
           {isAdmin && (
             <div className="flex items-center gap-2 shrink-0 z-10">
-              <button
+              <motion.button
                 onClick={() => setEditMachineOpen(true)}
                 className="inline-flex items-center gap-1.5 px-3 h-8 text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <Edit2 size={12} />
                 <span>Ubah Mesin</span>
-              </button>
+              </motion.button>
               
-              <button
+              <motion.button
                 onClick={() => setDeleteConfirmOpen(true)}
                 className="inline-flex items-center gap-1.5 px-3 h-8 text-[11px] font-bold bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-200 dark:border-red-900 rounded-lg hover:bg-red-100/30 transition-colors cursor-pointer"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <Trash2 size={12} />
                 <span>Hapus Mesin</span>
-              </button>
+              </motion.button>
             </div>
           )}
-        </div>
+        </motion.div>
+
+        {/* Card Summary Spesifikasi Mesin */}
+        {specs.length > 0 && (
+          <motion.div 
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            {specs.map((spec: any, index: number) => (
+              <motion.div
+                key={spec.label}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 + index * 0.06 }}
+                whileHover={{ y: -4, boxShadow: '0 8px 24px var(--accent-glow)' }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div 
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: spec.color }}
+                  >
+                    <spec.icon size={16} style={{ color: spec.textColor }} />
+                  </div>
+                </div>
+                <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400 mb-0.5">{spec.label}</p>
+                <p className="text-sm font-extrabold text-slate-800 dark:text-slate-100 truncate">{spec.value}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
 
         {/* Dual Tab Suku Cadang (Elektrik / Mekanik) */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-5">
+        <motion.div 
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-5"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+        >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
             {/* Pemilihan Tab */}
             <div className="flex border border-slate-200 dark:border-slate-800 text-xs font-bold p-1 rounded-xl gap-2 w-fit bg-slate-50 dark:bg-slate-950">
-              <button
+              <motion.button
                 onClick={() => setActiveTab('ELECTRICAL')}
                 className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-all cursor-pointer ${
                   activeTab === 'ELECTRICAL'
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <Zap size={13} className="text-amber-500 shrink-0" />
                 <span>Electrical Parts ({parts.filter(p => p.partType === 'ELECTRICAL').length})</span>
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
                 onClick={() => setActiveTab('MECHANICAL')}
                 className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-all cursor-pointer ${
                   activeTab === 'MECHANICAL'
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <Wrench size={13} className="text-blue-500 shrink-0" />
                 <span>Mechanical Parts ({parts.filter(p => p.partType === 'MECHANICAL').length})</span>
-              </button>
+              </motion.button>
             </div>
 
             {/* Tombol Map Part Baru (Admin) */}
             {isAdmin && (
               <div className="flex items-center gap-2">
-                <button
+                <motion.button
                   onClick={() => {
                     setImportFile(null);
                     setImportError('');
                     setImportModalOpen(true);
                   }}
                   className="inline-flex items-center gap-1.5 px-3 h-8 text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-300 rounded-lg transition-all shadow-xs cursor-pointer w-fit"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   📥 <span>Impor Excel Pemetaan</span>
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   onClick={() => setAssignModalOpen(true)}
                   className="inline-flex items-center gap-1.5 px-3 h-8 text-[11px] font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md shadow-blue-600/10 cursor-pointer w-fit"
+                  whileHover={{ scale: 1.02, boxShadow: '0 4px 20px rgba(37, 99, 235, 0.3)' }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   <Plus size={14} />
                   <span>Hubungkan Suku Cadang</span>
-                </button>
+                </motion.button>
               </div>
             )}
           </div>
 
           {/* Tabel Render */}
           {loading ? (
-            <div className="flex justify-center py-10">
+            <motion.div 
+              className="flex justify-center py-10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
-            </div>
+            </motion.div>
           ) : (
-            <MachinePartTable
-              parts={filteredParts}
-              onEdit={openEditAssignModal}
-              onUnassign={handleUnassignPart}
-            />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <MachinePartTable
+                parts={filteredParts}
+                onEdit={openEditAssignModal}
+                onUnassign={handleUnassignPart}
+              />
+            </motion.div>
           )}
-        </div>
+        </motion.div>
 
         {/* MODAL 1: Hubungkan Part Baru (AssignPartModal) */}
         <AssignPartModal
@@ -360,8 +451,18 @@ export default function MachineDetailPage() {
 
         {/* MODAL 2: Edit Kuantitas Rekomendasi / Notes */}
         {editAssignOpen && selectedAssignPart && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-            <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+          <motion.div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onClick={() => setEditAssignOpen(false)}
+          >
+            <motion.div 
+              className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800/80">
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
                   Ubah Rekomendasi Suku Cadang
@@ -430,14 +531,24 @@ export default function MachineDetailPage() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
 
         {/* MODAL 3: Edit Data Mesin */}
         {editMachineOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-            <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+          <motion.div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onClick={() => setEditMachineOpen(false)}
+          >
+            <motion.div 
+              className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800/80">
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
                   Ubah Informasi Mesin
@@ -527,14 +638,24 @@ export default function MachineDetailPage() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
 
         {/* MODAL 4: Konfirmasi Hapus Mesin */}
         {deleteConfirmOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-            <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+          <motion.div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onClick={() => setDeleteConfirmOpen(false)}
+          >
+            <motion.div 
+              className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 dark:border-slate-800/80 text-red-600">
                 <AlertTriangle size={18} className="shrink-0" />
                 <h3 className="text-sm font-bold">Hapus Mesin Produksi?</h3>
@@ -568,13 +689,23 @@ export default function MachineDetailPage() {
                   {deleteLoading ? 'Menghapus...' : 'Ya, Hapus'}
                 </button>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
         {/* MODAL 5: Impor Excel Pemetaan Suku Cadang */}
         {importModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-            <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+          <motion.div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onClick={() => setImportModalOpen(false)}
+          >
+            <motion.div 
+              className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800/80">
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
                   Impor Massal Pemetaan Suku Cadang
@@ -598,7 +729,7 @@ export default function MachineDetailPage() {
                       Gunakan format template resmi agar data terbaca oleh sistem.
                     </p>
                     <a
-                      href={`/api/machines/${machineId}/parts/template`}
+                      href={`/api/machines/${machineId.replace(/\//g, '___')}/parts/template`}
                       download
                       className="inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 rounded-lg hover:bg-emerald-100/30 transition-colors shrink-0"
                     >
@@ -637,10 +768,10 @@ export default function MachineDetailPage() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
 
-      </div>
+      </motion.div>
   );
 }

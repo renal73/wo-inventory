@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
+import MinimalVodafoneHero from '@/components/machines/MinimalVodafoneHero';
+import { motion } from 'motion/react';
 import { api } from '@/lib/api';
 import confetti from 'canvas-confetti';
 import { 
@@ -283,18 +285,16 @@ export default function TransactionsPage() {
   );
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-        
-        {/* Header Halaman */}
-        <div className="border-b border-slate-200 dark:border-slate-800 pb-5">
-          <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-100 uppercase">
-            Pencatatan Aliran Barang
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Catat barang masuk (Inbound) beserta kalkulasi harga rata-rata atau ambil suku cadang (Outbound) untuk keperluan pemeliharaan.
-          </p>
-        </div>
+    <div className="flex flex-col h-full min-h-screen bg-slate-50">
+      <MinimalVodafoneHero
+        eyebrow="TRANSACTIONS"
+        title="Pencatatan Aliran Barang"
+        subtitle="Catat barang masuk (Inbound) dan ambil suku cadang (Outbound)"
+      />
 
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+        
         {/* Tab Selection */}
         <div className="flex border-b border-slate-200 dark:border-slate-800 text-xs font-bold bg-white dark:bg-slate-900 p-1.5 rounded-xl gap-2 w-fit">
           <button
@@ -767,6 +767,8 @@ export default function TransactionsPage() {
           </div>
         )}
 
+        </div>
+        </div>
       </div>
   );
 }

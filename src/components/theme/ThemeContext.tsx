@@ -12,14 +12,14 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setTheme] = useState<Theme>('dark'); // Default ke dark sesuai brief
 
   useEffect(() => {
     // Jalankan di sisi klien saja
     const savedTheme = localStorage.getItem('theme') as Theme | null;
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     
-    const initialTheme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+    // Default ke dark mode jika tidak ada preferensi tersimpan
+    const initialTheme = savedTheme || 'dark';
     setTheme(initialTheme);
     
     if (initialTheme === 'dark') {

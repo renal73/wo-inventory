@@ -10,6 +10,8 @@ export async function GET(request: Request) {
     const search = searchParams.get('search')?.toLowerCase() || '';
     const area = searchParams.get('area') || '';
     const status = searchParams.get('status') || '';
+    const machineType = searchParams.get('machineType') || '';
+    const manufacturer = searchParams.get('manufacturer') || '';
 
     const where: any = {};
 
@@ -29,6 +31,16 @@ export async function GET(request: Request) {
     // Filter Status
     if (status) {
       where.status = status as MachineStatus;
+    }
+
+    // Filter Tipe Mesin (BARU)
+    if (machineType) {
+      where.machineType = machineType;
+    }
+
+    // Filter Merk/Manufacturer (BARU)
+    if (manufacturer) {
+      where.manufacturer = { contains: manufacturer, mode: 'insensitive' };
     }
 
     // Enrich dengan ringkasan part & peringatan stok
@@ -69,6 +81,11 @@ export async function GET(request: Request) {
         description: m.description,
         area: m.area,
         status: m.status,
+        // Field baru
+        machineType: m.machineType,
+        manufacturer: m.manufacturer,
+        powerWatt: m.powerWatt,
+        airPressureValue: m.airPressureValue,
         createdAt: m.createdAt.toISOString(),
         updatedAt: m.updatedAt.toISOString(),
         electricalCount,
@@ -91,7 +108,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { id, name, description, area, status } = body;
+    const { id, name, description, area, status, machineType, manufacturer, powerWatt, airPressureValue } = body;
 
     if (!id || !name) {
       return NextResponse.json(
@@ -106,6 +123,23 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Validasi powerWatt harus positif jika diberikan
+    if (powerWatt !== undefined && powerWatt !== null && powerWatt < 0) {
+      return NextResponse.json(
+        { message: 'Power (Watt) harus angka positif' },
+        { status: 400 }
+      );
+    }
+
+    // Validasi airPressureValue harus positif jika diberikan
+    if (airPressureValue !== undefined && airPressureValue !== null && airPressureValue < 0) {
+      return NextResponse.json(
+        { message: 'Tekanan udara harus angka positif' },
+        { status: 400 }
+      );
+    }
+
     // Validasi format Kode Mesin: UT-ab/000, EQ-ab/000, atau NA/Null (Bebas)
     const utEqRegex = /^(UT|EQ)-[A-Z]{2}\/\d{3,4}$/;
     const isUtEq = id.startsWith('UT-') || id.startsWith('EQ-');
@@ -149,7 +183,12 @@ export async function POST(request: Request) {
         name: name.trim(),
         description: description ? description.trim() : null,
         area: area ? area.trim() : null,
-        status: (status || 'ACTIVE') as MachineStatus
+        status: (status || 'ACTIVE') as MachineStatus,
+        // Field baru
+        machineType: machineType ? machineType.trim() : null,
+        manufacturer: manufacturer ? manufacturer.trim() : null,
+        powerWatt: powerWatt ? parseInt(powerWatt) : null,
+        airPressureValue: airPressureValue ? parseFloat(airPressureValue) : null,
       }
     });
 

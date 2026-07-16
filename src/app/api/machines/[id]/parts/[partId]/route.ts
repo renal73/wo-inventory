@@ -8,7 +8,8 @@ interface RouteParams {
 // PUT: Perbarui data recommendedMinQty / notes pemetaan part ke mesin (Admin only)
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
-    const { id: machineId, partId } = await params;
+    const { id: rawMachineId, partId } = await params;
+    const machineId = decodeURIComponent(rawMachineId).replace(/___/g, '/');
     
     const machinePart = await prisma.machinePart.findUnique({
       where: {
@@ -62,7 +63,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
 // DELETE: Hapus pemetaan (Unassign) part dari mesin (Admin only)
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
-    const { id: machineId, partId } = await params;
+    const { id: rawMachineId, partId } = await params;
+    const machineId = decodeURIComponent(rawMachineId).replace(/___/g, '/');
     
     const machinePart = await prisma.machinePart.findUnique({
       where: {

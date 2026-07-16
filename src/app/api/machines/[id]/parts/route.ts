@@ -9,7 +9,8 @@ interface RouteParams {
 // GET: Daftar part (elec + mech) yang terhubung ke mesin dengan stok real-time
 export async function GET(request: Request, { params }: RouteParams) {
   try {
-    const { id: machineId } = await params;
+    const { id } = await params;
+    const machineId = decodeURIComponent(id).replace(/___/g, '/');
     
     // Cek apakah mesin ada
     const machine = await prisma.machine.findUnique({
@@ -71,7 +72,8 @@ export async function GET(request: Request, { params }: RouteParams) {
 // POST: Hubungkan (Assign) part ke mesin (Admin only)
 export async function POST(request: Request, { params }: RouteParams) {
   try {
-    const { id: machineId } = await params;
+    const { id } = await params;
+    const machineId = decodeURIComponent(id).replace(/___/g, '/');
     
     // Cek apakah mesin ada
     const machine = await prisma.machine.findUnique({

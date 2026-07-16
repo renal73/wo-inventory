@@ -5,9 +5,9 @@ import bcrypt from 'bcryptjs';
 export async function POST(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const clear = searchParams.get('clear') === 'true';
+    const clearType = searchParams.get('clear');
 
-    if (clear) {
+    if (clearType === 'parts' || clearType === 'true') {
       await prisma.$transaction(async (tx) => {
         // Hapus transaksi & relasi
         await tx.outboundTransaction.deleteMany();
@@ -20,7 +20,23 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         success: true,
-        message: 'Database berhasil dikosongkan. Seluruh data barang, log transaksi, dan pemetaan mesin telah dihapus.'
+        message: 'Data Barang (Suku Cadang) beserta log transaksi berhasil dikosongkan.'
+      });
+    } else if (clearType === 'machines') {
+      await prisma.$transaction(async (tx) => {
+        // Putuskan relasi transaksi dari mesin (hindari error foreign key)
+        await tx.outboundTransaction.updateMany({
+          data: { machineId: null }
+        });
+        
+        // Hapus relasi pemetaan part dan data mesin
+        await tx.machinePart.deleteMany();
+        await tx.machine.deleteMany();
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Data Mesin Produksi berhasil dikosongkan.'
       });
     } else {
       // Reset database ke data bawaan (seeding)

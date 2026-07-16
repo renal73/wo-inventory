@@ -8,7 +8,9 @@ export async function GET() {
       'Nama Mesin',
       'Area',
       'Status',
-      'Deskripsi'
+      'Deskripsi',
+      'Daya (kW)',
+      'Tekanan Udara (bar)'
     ];
 
     const examples = [
@@ -17,21 +19,27 @@ export async function GET() {
         'Nama Mesin': 'Genset Utama Utility',
         'Area': 'Utility Gedung B',
         'Status': 'ACTIVE',
-        'Deskripsi': 'Genset penyuplai listrik cadangan area produksi'
+        'Deskripsi': 'Genset penyuplai listrik cadangan area produksi',
+        'Daya (kW)': 7500,
+        'Tekanan Udara (bar)': null
       },
       {
         'Kode Mesin': 'EQ-ME/002',
         'Nama Mesin': 'Mesin Tablet Coating A',
         'Area': 'Produksi Lantai 1',
         'Status': 'MAINTENANCE',
-        'Deskripsi': 'Mesin coating kapasitas 200kg'
+        'Deskripsi': 'Mesin coating kapasitas 200kg',
+        'Daya (kW)': 15,
+        'Tekanan Udara (bar)': 6
       },
       {
         'Kode Mesin': 'NA-MANUAL',
         'Nama Mesin': 'Alat Press Manual',
         'Area': 'Laboratorium QC',
         'Status': 'INACTIVE',
-        'Deskripsi': 'Alat press manual tablet uji coba'
+        'Deskripsi': 'Alat press manual tablet uji coba',
+        'Daya (kW)': 2.2,
+        'Tekanan Udara (bar)': null
       }
     ];
 

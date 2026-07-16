@@ -6,7 +6,7 @@ export interface User {
   id: string;
   username: string;
   name: string;
-  role: 'ADMIN' | 'USER';
+  role: 'ADMIN' | 'USER' | 'WAREHOUSE';
   createdAt: string;
   updatedAt: string;
 }

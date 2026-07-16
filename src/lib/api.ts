@@ -19,7 +19,11 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     } catch {
       // Abaikan jika bukan json
     }
-    throw new Error(errMsg);
+    // Pastikan errMsg adalah string yang valid, tambahkan context untuk debugging
+    const finalErrMsg = (typeof errMsg === 'string' && errMsg.trim()) 
+      ? errMsg.trim() 
+      : 'Terjadi kesalahan pada server';
+    throw new Error(`${finalErrMsg} (Status: ${res.status} ${res.statusText}) [${url}]`);
   }
 
   // Jika response tidak ada content (misal status 204 atau delete sukses)
@@ -68,28 +72,30 @@ export const api = {
 
   // Mesin / Machines
   machines: {
-    list: (params?: { search?: string; area?: string; status?: string }) => {
+    list: (params?: { search?: string; area?: string; status?: string; machineType?: string; manufacturer?: string }) => {
       const q = new URLSearchParams();
       if (params?.search) q.set('search', params.search);
       if (params?.area) q.set('area', params.area);
       if (params?.status) q.set('status', params.status);
+      if (params?.machineType) q.set('machineType', params.machineType);
+      if (params?.manufacturer) q.set('manufacturer', params.manufacturer);
       return request<any[]>(`/api/machines?${q.toString()}`);
     },
-    getById: (id: string) => request<any>(`/api/machines/${id}`),
+    getById: (id: string) => request<any>(`/api/machines/${id.replace(/\//g, '___')}`),
     create: (body: any) => request<any>('/api/machines', { method: 'POST', body: JSON.stringify(body) }),
-    update: (id: string, body: any) => request<any>(`/api/machines/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    delete: (id: string) => request<any>(`/api/machines/${id}`, { method: 'DELETE' }),
+    update: (id: string, body: any) => request<any>(`/api/machines/${id.replace(/\//g, '___')}`, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (id: string) => request<any>(`/api/machines/${id.replace(/\//g, '___')}`, { method: 'DELETE' }),
     
     // Hubungan Mesin & Part
-    getParts: (machineId: string) => request<any[]>(`/api/machines/${machineId}/parts`),
+    getParts: (machineId: string) => request<any[]>(`/api/machines/${machineId.replace(/\//g, '___')}/parts`),
     assignPart: (machineId: string, body: { partId: string; partType: string; recommendedMinQty: number; notes?: string }) => 
-      request<any>(`/api/machines/${machineId}/parts`, { method: 'POST', body: JSON.stringify(body) }),
+      request<any>(`/api/machines/${machineId.replace(/\//g, '___')}/parts`, { method: 'POST', body: JSON.stringify(body) }),
     updatePart: (machineId: string, partId: string, body: { recommendedMinQty: number; notes?: string }) => 
-      request<any>(`/api/machines/${machineId}/parts/${partId}`, { method: 'PUT', body: JSON.stringify(body) }),
+      request<any>(`/api/machines/${machineId.replace(/\//g, '___')}/parts/${partId}`, { method: 'PUT', body: JSON.stringify(body) }),
     unassignPart: (machineId: string, partId: string) => 
-      request<any>(`/api/machines/${machineId}/parts/${partId}`, { method: 'DELETE' }),
+      request<any>(`/api/machines/${machineId.replace(/\//g, '___')}/parts/${partId}`, { method: 'DELETE' }),
     importPartsExcel: (machineId: string, formData: FormData) => 
-      request<any>(`/api/machines/${machineId}/parts/import-excel`, { method: 'POST', body: formData }),
+      request<any>(`/api/machines/${machineId.replace(/\//g, '___')}/parts/import-excel`, { method: 'POST', body: formData }),
   },
 
   // Transaksi
@@ -130,6 +136,66 @@ export const api = {
     importExcel: (formData: FormData) => request<any>('/api/import-excel', { method: 'POST', body: formData }),
     importMachinesExcel: (formData: FormData) => request<any>('/api/machines/import-excel', { method: 'POST', body: formData }),
     seedDb: () => request<any>('/api/seed', { method: 'POST' }),
-    clearDb: () => request<any>('/api/seed?clear=true', { method: 'POST' }),
+    clearDbParts: () => request<any>('/api/seed?clear=parts', { method: 'POST' }),
+    clearDbMachines: () => request<any>('/api/seed?clear=machines', { method: 'POST' }),
+  },
+
+  // Ruangan / Rooms
+  rooms: {
+    list: () => request<any[]>('/api/rooms'),
+    create: (body: any) => request<any>('/api/rooms', { method: 'POST', body: JSON.stringify(body) }),
+    update: (body: any) => request<any>('/api/rooms', { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (id: string) => request<any>(`/api/rooms?id=${id}`, { method: 'DELETE' }),
+    export: () => fetch('/api/rooms/export', { method: 'GET' }),
+    import: (formData: FormData) => {
+      const headers = new Headers();
+      return request<any>('/api/rooms/import', { method: 'POST', body: formData, headers });
+    },
+  },
+
+  // Work Orders Admin (Export/Import/Delete All)
+  workOrdersAdmin: {
+    export: () => {
+      // Return raw response for file download
+      return fetch('/api/work-orders/export', { method: 'GET' });
+    },
+    exportExcel: () => {
+      return fetch('/api/work-orders/export-excel', { method: 'GET' });
+    },
+    import: (formData: FormData) => {
+      const headers = new Headers();
+      // Don't set Content-Type for FormData
+      return request<any>('/api/work-orders/import', { method: 'POST', body: formData, headers });
+    },
+    getTemplate: () => {
+      return fetch('/api/work-orders/template', { method: 'GET' });
+    },
+    getTemplateExcel: () => {
+      return fetch('/api/work-orders/template?format=excel', { method: 'GET' });
+    },
+    getCount: () => request<any>('/api/work-orders/all', { method: 'GET' }),
+    deleteAll: () => request<any>('/api/work-orders/all', { method: 'DELETE' }),
+  },
+
+  // Tools Admin (Export/Import/Delete All)
+  toolsAdmin: {
+    export: () => {
+      return fetch('/api/tools/export', { method: 'GET' });
+    },
+    exportExcel: () => {
+      return fetch('/api/tools/export-excel', { method: 'GET' });
+    },
+    import: (formData: FormData) => {
+      const headers = new Headers();
+      return request<any>('/api/tools/import', { method: 'POST', body: formData, headers });
+    },
+    getTemplate: () => {
+      return fetch('/api/tools/template', { method: 'GET' });
+    },
+    getTemplateExcel: () => {
+      return fetch('/api/tools/template?format=excel', { method: 'GET' });
+    },
+    getCount: () => request<any>('/api/tools/count', { method: 'GET' }),
+    deleteAll: () => request<any>('/api/tools/delete-all', { method: 'DELETE' }),
   }
 };

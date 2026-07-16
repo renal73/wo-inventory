@@ -28,11 +28,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const isLoginPage = pathname === '/login';
+  const isLandingPage = pathname === '/';
 
-  // Jika di halaman login, tampilkan halaman penuh tanpa Shell Sidebar/Header
-  if (isLoginPage) {
+  // Jika di halaman login atau landing page, tampilkan tanpa Shell Sidebar/Header
+  if (isLoginPage || isLandingPage) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex items-center justify-center">
+      <div className="min-h-screen transition-colors duration-200" style={{ backgroundColor: isLandingPage ? '#060B18' : 'var(--bg-base)', color: 'var(--text-primary)' }}>
         {children}
       </div>
     );
@@ -40,11 +41,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100">
+      <div className="min-h-screen transition-colors duration-200" style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>
         {/* Backdrop Overlay untuk perangkat seluler ketika laci sidebar terbuka */}
         {isMobile && isMobileOpen && (
           <div
-            className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-35 md:hidden"
+            className="fixed inset-0 z-35 md:hidden backdrop-blur-sm"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
             onClick={() => setIsMobileOpen(false)}
           />
         )}
@@ -61,7 +63,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div
           className="flex flex-col min-h-screen transition-all duration-300"
           style={{
-            paddingLeft: isMobile ? '0px' : (isCollapsed ? '76px' : '260px'),
+            paddingLeft: isMobile ? '0px' : (isCollapsed ? '76px' : '280px'),
           }}
         >
           {/* Header Top Bar */}

@@ -3,44 +3,306 @@
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Set font family custom Geist dari layout.tsx */
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  /* Set font family custom Plus Jakarta Sans */
+  --font-sans: var(--font-jakarta), var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
+  
+  /* Typography Scale */
+  --text-app-xs: 0.6875rem;
+  --text-app-sm: 0.75rem;
+  --text-app-base: 0.875rem;
+  --text-app-lg: 1rem;
+  --text-app-xl: 1.125rem;
+  --text-app-2xl: 1.25rem;
+  --text-app-3xl: 1.5rem;
+  
+  /* Font Weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+  --font-black: 900;
 }
 
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px var(--accent-glow); }
+  50% { box-shadow: 0 0 20px var(--accent-glow), 0 0 40px var(--accent-glow); }
+}
+
+@keyframes slide-in-right {
+  0% { transform: translateX(-8px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fade-in-up {
+  0% { transform: translateY(4px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes border-glow {
+  0%, 100% { border-color: var(--accent); opacity: 0.4; }
+  50% { border-color: var(--accent-secondary); opacity: 0.8; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes particle-3d-float {
+  0%, 100% { transform: translateZ(var(--z, 0px)) translateY(0) translateX(0); opacity: 0.4; }
+  25% { transform: translateZ(var(--z, 0px)) translateY(-30px) translateX(15px); opacity: 0.7; }
+  50% { transform: translateZ(var(--z, 0px)) translateY(-10px) translateX(-10px); opacity: 0.4; }
+  75% { transform: translateZ(var(--z, 0px)) translateY(-40px) translateX(5px); opacity: 0.6; }
+}
+
+@keyframes line-pulse {
+  0%, 100% { opacity: 0.1; stroke-dashoffset: 0; }
+  50% { opacity: 0.4; stroke-dashoffset: 20; }
+}
+
+@utility animate-shimmer {
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@utility animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+@utility animate-slide-in {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+@utility animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out;
+}
+
+@utility animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+@utility animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ========================================
+   DESIGN TOKENS — DUAL MODE (DARK + LIGHT)
+   Anvita-inspired palette: Cyan-Blue gradient
+   ======================================== */
+
 :root {
-  --background: #f8fafc; /* slate-50 */
-  --foreground: #0f172a; /* slate-900 */
+  /* MODE TERANG */
+  --bg-base: #F0F4F8;
+  --bg-base-translucent: rgba(240, 244, 248, 0.85);
+  --bg-sidebar: #FFFFFF;
+  --bg-sidebar-gradient-start: #FFFFFF;
+  --bg-sidebar-gradient-end: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface-raised: #F1F5F9;
+  --border: rgba(0, 0, 0, 0.07);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  
+  /* Anvita Cyan-Blue Accent */
+  --accent: #0891B2;
+  --accent-secondary: #0077B6;
+  --accent-tertiary: #00B4D8;
+  --accent-glow: rgba(8, 145, 178, 0.12);
+  --accent-glow-strong: rgba(8, 145, 178, 0.25);
+  --accent-gradient: linear-gradient(135deg, #0891B2, #0077B6, #00B4D8);
+  --accent-gradient-horizontal: linear-gradient(90deg, #0891B2, #00B4D8);
+  
+  /* Sidebar specific */
+  --sidebar-active-bg: rgba(8, 145, 178, 0.10);
+  --sidebar-active-text: #0891B2;
+  --sidebar-hover-bg: rgba(8, 145, 178, 0.05);
+  --sidebar-indicator: #0891B2;
+  
+  /* Status & badge colors (light mode) */
+  --status-laporan-bg: rgba(107, 114, 128, 0.1);
+  --status-laporan-text: #4B5563;
+  --status-ditugaskan-bg: rgba(59, 130, 246, 0.1);
+  --status-ditugaskan-text: #2563EB;
+  --status-dikerjakan-bg: rgba(245, 158, 11, 0.1);
+  --status-dikerjakan-text: #D97706;
+  --status-ditangguhkan-bg: rgba(168, 85, 247, 0.1);
+  --status-ditangguhkan-text: #9333EA;
+  --status-verifikasi-bg: rgba(34, 211, 238, 0.1);
+  --status-verifikasi-text: #0891B2;
+  
+  --priority-low-bg: rgba(22, 163, 74, 0.1);
+  --priority-low-text: #16A34A;
+  --priority-medium-bg: rgba(202, 138, 4, 0.1);
+  --priority-medium-text: #CA8A04;
+  --priority-high-bg: rgba(234, 88, 12, 0.1);
+  --priority-high-text: #EA580C;
+  --priority-critical-bg: #DC2626;
+  --priority-critical-text: #FFFFFF;
+}
+
+.dark {
+  /* MODE GELAP — Deep Navy Gradient */
+  --bg-base: #060B18;
+  --bg-base-translucent: rgba(6, 11, 24, 0.85);
+  --bg-sidebar: #0A1020;
+  --bg-sidebar-gradient-start: #0A1020;
+  --bg-sidebar-gradient-end: #0D1528;
+  --surface: #111827;
+  --surface-raised: #1A2332;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #475569;
+  
+  /* Anvita Cyan-Blue Accent (Dark) */
+  --accent: #22D3EE;
+  --accent-secondary: #06B6D4;
+  --accent-tertiary: #0EA5E9;
+  --accent-glow: rgba(34, 211, 238, 0.20);
+  --accent-glow-strong: rgba(34, 211, 238, 0.35);
+  --accent-gradient: linear-gradient(135deg, #22D3EE, #06B6D4, #0EA5E9);
+  --accent-gradient-horizontal: linear-gradient(90deg, #22D3EE, #0EA5E9);
+  
+  /* Sidebar specific */
+  --sidebar-active-bg: rgba(34, 211, 238, 0.12);
+  --sidebar-active-text: #22D3EE;
+  --sidebar-hover-bg: rgba(34, 211, 238, 0.06);
+  --sidebar-indicator: #22D3EE;
+  
+  /* Status & badge colors (dark mode) */
+  --status-laporan-bg: rgba(107, 114, 128, 0.15);
+  --status-laporan-text: #9CA3AF;
+  --status-ditugaskan-bg: rgba(59, 130, 246, 0.15);
+  --status-ditugaskan-text: #3B82F6;
+  --status-dikerjakan-bg: rgba(245, 158, 11, 0.15);
+  --status-dikerjakan-text: #F59E0B;
+  --status-ditangguhkan-bg: rgba(168, 85, 247, 0.15);
+  --status-ditangguhkan-text: #A855F7;
+  --status-verifikasi-bg: rgba(34, 211, 238, 0.15);
+  --status-verifikasi-text: #22D3EE;
+  
+  --priority-low-bg: rgba(34, 197, 94, 0.15);
+  --priority-low-text: #4ADE80;
+  --priority-medium-bg: rgba(250, 204, 21, 0.15);
+  --priority-medium-text: #FACC15;
+  --priority-high-bg: rgba(251, 146, 60, 0.15);
+  --priority-high-text: #FB923C;
+  --priority-critical-bg: #DC2626;
+  --priority-critical-text: #FFFFFF;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
+  background-color: var(--bg-base);
+  color: var(--text-primary);
   font-family: var(--font-sans);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 300ms ease, color 300ms ease;
 }
 
-/* Custom styling tambahan untuk visual premium */
-.glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-/* Scrollbar premium tipis */
+/* ========================================
+   SCROLLBAR CUSTOM (DARK MODE AWARE)
+   ======================================== */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--border-strong);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--text-muted);
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+/* Tinted shadows */
+.shadow-accent {
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+
+.shadow-accent-sm {
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+/* Glow effect */
+.glow-accent {
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+
+.glow-accent-strong {
+  box-shadow: 0 0 32px var(--accent-glow-strong), 0 0 64px var(--accent-glow);
+}
+
+/* Gradient text */
+.text-gradient-accent {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Gradient border */
+.border-gradient {
+  position: relative;
+}
+.border-gradient::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--accent-gradient);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Sidebar specific */
+.sidebar-glass {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+
+/* Override for animations that should not transition color */
+[data-no-color-transition],
+[data-no-color-transition] * {
+  transition-property: transform, opacity, box-shadow;
 }
