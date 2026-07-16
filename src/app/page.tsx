@@ -145,13 +145,6 @@ export default function LandingPage() {
   const [showLogin, setShowLogin] = useState(false);
   const { scrollYProgress } = useScroll();
 
-  // If user is logged in, redirect to dashboard
-  useEffect(() => {
-    if (user) {
-      router.push('/maintenance');
-    }
-  }, [user, router]);
-
   // Parallax for background
   const bgY = useTransform(scrollYProgress, [0, 1], ['0%', '30%']);
 
